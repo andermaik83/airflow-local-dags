@@ -24,11 +24,11 @@ with DAG(
     tags=["windows", "opsi", "monitor"],
 ) as dag:
 
+    #Create a hook
+    winRMHook = WinRMHook(ssh_conn_id=WINRM_CONN_ID)
     # Using WinRMOperator for Windows machine
     opsi_monitor_task = WinRMOperator(
         task_id='run_opsi_monitor',
-        conn_id=WINRM_CONN_ID,  # ✅ Changed from winrm_conn_id to conn_id
-        command=f'cd /d E:\\Local\\OPSi_monitor && {SCRIPT_PATH} 1>{LOG_DIR}\\output.log 2>{LOG_DIR}\\error.log',  # ✅ Changed from list to string
-        dag=dag,
+        command=f'cd /d E:\\Local\\OPSi_monitor && {SCRIPT_PATH} 1>{LOG_DIR}\\output.log 2>{LOG_DIR}\\error.log'
     )
 
