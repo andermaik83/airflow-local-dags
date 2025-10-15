@@ -27,10 +27,8 @@ with DAG(
     # Using WinRMOperator for Windows machine
     opsi_monitor_task = WinRMOperator(
         task_id='run_opsi_monitor',
-        winrm_conn_id=WINRM_CONN_ID,
-        command=[
-            'cmd', '/c',
-            f'cd /d E:\\Local\\OPSi_monitor && {SCRIPT_PATH} 1>{LOG_DIR}\\output.log 2>{LOG_DIR}\\error.log'
-        ],
+        conn_id=WINRM_CONN_ID,  # ✅ Changed from winrm_conn_id to conn_id
+        command=f'cd /d E:\\Local\\OPSi_monitor && {SCRIPT_PATH} 1>{LOG_DIR}\\output.log 2>{LOG_DIR}\\error.log',  # ✅ Changed from list to string
+        dag=dag,
     )
 
