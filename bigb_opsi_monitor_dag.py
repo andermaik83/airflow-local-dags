@@ -19,6 +19,7 @@ with DAG(
     default_args=default_args,
     description='OPSi Monitor job converted from Autosys - runs every 10 minutes, 7 days a week',
     schedule='*/10 * * * *',  # Every 10 minutes (00,10,20,30,40,50)
+    start_date=datetime(2024, 1, 1),
     catchup=False,
     max_active_runs=1,  # Prevent overlapping runs
     tags=["windows", "opsi", "monitor"],
@@ -30,6 +31,9 @@ with DAG(
     opsi_monitor_task = WinRMOperator(
         task_id='run_opsi_monitor',
         command=f'cd /d E:\\Local\\OPSi_monitor && {SCRIPT_PATH} 1>{LOG_DIR}\\output.log 2>{LOG_DIR}\\error.log',
-        winrm_hook=winRMHook
+        winrm_hook=winRMHook,
+        read_timeout_sec=900,        # Airflow waits up to 15 minutes for output
+        operation_timeout_sec=300,   # WinRM server will check in every 5 minutes
+        execution_timeout=timedelta(minutes=20),  # Airflow hard stop after 20 min        
     )
 
