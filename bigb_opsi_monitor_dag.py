@@ -1,5 +1,4 @@
 from airflow import DAG
-from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 from datetime import datetime, timedelta
 
@@ -25,8 +24,6 @@ with DAG(
     tags=["windows", "opsi", "monitor"],
 ) as dag:
 
-    #Create a hook
-    winRMHook = WinRMHook(ssh_conn_id=WINRM_CONN_ID)
     # Using WinRMOperator for Windows machine
     opsi_monitor_task = WinRMOperator(
         task_id='run_opsi_monitor',
