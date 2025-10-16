@@ -31,6 +31,6 @@ with DAG(
     opsi_monitor_task = WinRMOperator(
         task_id='run_opsi_monitor',
         command=f'cd /d E:\\Local\\OPSi_monitor && {SCRIPT_PATH} 1>{LOG_DIR}\\output.log 2>{LOG_DIR}\\error.log',
-        ssh_conn_id=WINRM_CONN_ID      
+        winrm_hook=winRMHook      
     )
 
