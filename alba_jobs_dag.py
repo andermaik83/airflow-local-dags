@@ -244,19 +244,3 @@ alba_renimg >> alba_mail_errors_renimg >> alba_success_renimg
 
 # 4. XML processing depends on both XML and no-images checks
 [alba_check_xml, alba_check_noimages] >> alba_mv_xml
-
-# Optional: Add a final summary task
-summary_task = BashOperator(
-    task_id='alba_workflow_summary',
-    bash_command='''
-    echo "ALBA Workflow Summary:"
-    echo "- Image processing: {{ ti.xcom_pull(task_ids='alba_image_processing.alba_mail_images') }}"
-    echo "- XML processing: {{ ti.xcom_pull(task_ids='alba_mv_xml') }}"
-    echo "- File checks completed"
-    ''',
-    trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS,
-    dag=dag
-)
-
-# Summary task depends on main workflow completion
-[alba_mail_images, alba_mv_xml] >> summary_task
