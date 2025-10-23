@@ -24,7 +24,6 @@ dag = DAG(
     'alba_jobs_dag',
     default_args=default_args,
     description='ALBA jobs migrated from Autosys - Image processing and monitoring',
-    schedule_interval=None,  # Manual trigger or sensor-based
     catchup=False,
     tags=['alba', 'migration', 'autosys', 'image-processing'],
 )
