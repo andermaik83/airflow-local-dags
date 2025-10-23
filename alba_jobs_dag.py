@@ -24,6 +24,7 @@ dag = DAG(
     'alba_jobs_dag',
     default_args=default_args,
     description='ALBA jobs migrated from Autosys - Image processing and monitoring',
+    schedule=None, # Manual trigger or sensor-based
     catchup=False,
     tags=['alba', 'migration', 'autosys', 'image-processing'],
 )
@@ -81,6 +82,7 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
         task_id='alba_check_images',
         python_callable=check_file_exists,
         params={'file_path': ALBA_IMG_ISSUE_FILE},
+        dag=dag,
         doc_md="""
         **ALBA Check Images File Watcher**
         
@@ -95,6 +97,7 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
         task_id='alba_check_xml',
         python_callable=check_file_exists,
         params={'file_path': ALBA_XML_ISSUE_FILE},
+        dag=dag,
         doc_md="""
         **ALBA Check XML File Watcher**
         
@@ -109,6 +112,7 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
         task_id='alba_check_noimages',
         python_callable=check_file_exists,
         params={'file_path': ALBA_NO_IMG_FILE},
+        dag=dag,
         doc_md="""
         **ALBA Check No Images File Watcher**
         
@@ -126,6 +130,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
         task_id='alba_renimg',
         ssh_conn_id=SSH_CONN_ID_VL101,
         command='/TEST/LIB/ALBA/ALBA_renimg/proc/ALBA_renimg.sh',
+        dag=dag,
         doc_md="""
         **ALBA Rename Images Task**
         
@@ -140,6 +145,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
         task_id='alba_cnvimg',
         ssh_conn_id=SSH_CONN_ID_VL101,
         command='/TEST/LIB/ALBA/ALBA_cnvimg/proc/ALBA_cnvimg.sh',
+        dag=dag,
         doc_md="""
         **ALBA Convert Images Task**
         
@@ -154,6 +160,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
         task_id='alba_cnvldimg',
         ssh_conn_id=SSH_CONN_ID_VL101,
         command='/TEST/LIB/ALBA/ALBA_cnvldimg/proc/ALBA_cnvldimg.sh',
+        dag=dag,
         doc_md="""
         **ALBA Convert Loaded Images Task**
         
@@ -169,6 +176,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
         ssh_conn_id=SSH_CONN_ID_VL101,
         command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_mail_errors_renimg.sh',
         trigger_rule=TriggerRule.ONE_FAILED,  # Runs only if alba_renimg fails
+        dag=dag,
         doc_md="""
         **ALBA Mail Rename Errors Task**
         
@@ -183,6 +191,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
         task_id='alba_success_renimg',
         bash_command='echo "SUCCESS: tcALBA_renimg completed successfully"',
         trigger_rule=TriggerRule.ALL_SUCCESS,
+        dag=dag,
         doc_md="""
         **ALBA Success Event Task**
         
@@ -197,6 +206,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
         task_id='alba_mail_images',
         ssh_conn_id=SSH_CONN_ID_VL105,
         command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_mail_images.sh',
+        dag=dag,
         doc_md="""
         **ALBA Mail Images Summary Task**
         
