@@ -21,17 +21,17 @@ default_args = {
 }
 
 dag = DAG(
-    'alba_jobs_dag',
+    'alba_conversion_dag',
     default_args=default_args,
-    description='ALBA jobs migrated from Autosys - Image processing and monitoring',
+    description='Image processing and monitoring',
     schedule=None, # Manual trigger or sensor-based
     catchup=False,
-    tags=['alba', 'migration', 'autosys', 'image-processing'],
+    tags=['test','alba','datdproc'],
 )
 
 # SSH Connection IDs
-SSH_CONN_ID_VL101 = 'tgen_vl101'  # For tgen-vl101 server
-SSH_CONN_ID_VL105 = 'tgen_vl105'  # For tgen-vl105 server
+SSH_CONN_ID_1 = 'tgen_vl101'  # For tgen-vl101 server
+SSH_CONN_ID_2 = 'tgen_vl105'  # For tgen-vl105 server
 
 # File paths for monitoring
 ALBA_IMG_ISSUE_FILE = "/TEST/SHR/ALBA/work/ALBA_imgissue.par"
@@ -40,7 +40,7 @@ ALBA_NO_IMG_FILE = "/TEST/SHR/ALBA/work/ALBA_noimgtoprocess"
 
 def check_file_exists(**context):
     """Check if file exists on remote server"""
-    ssh_hook = SSHHook(ssh_conn_id=SSH_CONN_ID_VL105)
+    ssh_hook = SSHHook(ssh_conn_id=SSH_CONN_ID_2)
     file_path = context['params']['file_path']
     
     try:
@@ -61,13 +61,12 @@ def check_file_exists(**context):
 # Task 1: Check issues (prerequisite for file watchers)
 alba_checkissue = SSHOperator(
     task_id='alba_checkissue',
-    ssh_conn_id=SSH_CONN_ID_VL105,
-    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_chkissues.sh',
+    ssh_conn_id=SSH_CONN_ID_2,
+    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_chkissues.sh ',
     dag=dag,
     doc_md="""
     **ALBA Check Issues Task**
     
-    Original Autosys job: tcALBA_checkissue
     - Runs check script to identify ALBA processing issues
     - Creates monitoring files for downstream file sensors
     - Wiki: https://wiki.clarivate.io/display/OPERS/ALBA+images
@@ -86,7 +85,6 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
         doc_md="""
         **ALBA Check Images File Watcher**
         
-        Original Autosys job: tfALBA_check_images (FT type)
         - Monitors creation of ALBA_imgissue.par file
         - Triggers image processing workflow when file is created
         """
@@ -101,7 +99,6 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
         doc_md="""
         **ALBA Check XML File Watcher**
         
-        Original Autosys job: tfALBA_check_xml (FT type)
         - Monitors creation of ALBA_xmlissue.par file
         - Part of XML processing workflow
         """
@@ -116,7 +113,6 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
         doc_md="""
         **ALBA Check No Images File Watcher**
         
-        Original Autosys job: tfALBA_check_noimages (FT type)
         - Monitors creation of ALBA_noimgtoprocess file
         - Indicates no images to process condition
         """
@@ -128,13 +124,12 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     # Step 1: Rename images
     alba_renimg = SSHOperator(
         task_id='alba_renimg',
-        ssh_conn_id=SSH_CONN_ID_VL101,
-        command='/TEST/LIB/ALBA/ALBA_renimg/proc/ALBA_renimg.sh',
+        ssh_conn_id=SSH_CONN_ID_1,
+        command='/TEST/LIB/ALBA/ALBA_renimg/proc/ALBA_renimg.sh ',
         dag=dag,
         doc_md="""
         **ALBA Rename Images Task**
         
-        Original Autosys job: tcALBA_renimg
         - First step in image processing workflow
         - Renames image files as part of processing
         """
@@ -143,13 +138,12 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     # Step 2: Convert images (depends on rename success)
     alba_cnvimg = SSHOperator(
         task_id='alba_cnvimg',
-        ssh_conn_id=SSH_CONN_ID_VL101,
-        command='/TEST/LIB/ALBA/ALBA_cnvimg/proc/ALBA_cnvimg.sh',
+        ssh_conn_id=SSH_CONN_ID_1,
+        command='/TEST/LIB/ALBA/ALBA_cnvimg/proc/ALBA_cnvimg.sh ',
         dag=dag,
         doc_md="""
         **ALBA Convert Images Task**
         
-        Original Autosys job: tcALBA_cnvimg
         - Converts images after successful rename
         - Part of main image processing pipeline
         """
@@ -158,13 +152,12 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     # Step 3: Convert loaded images (depends on convert success)
     alba_cnvldimg = SSHOperator(
         task_id='alba_cnvldimg',
-        ssh_conn_id=SSH_CONN_ID_VL101,
-        command='/TEST/LIB/ALBA/ALBA_cnvldimg/proc/ALBA_cnvldimg.sh',
+        ssh_conn_id=SSH_CONN_ID_1,
+        command='/TEST/LIB/ALBA/ALBA_cnvldimg/proc/ALBA_cnvldimg.sh ',
         dag=dag,
         doc_md="""
         **ALBA Convert Loaded Images Task**
         
-        Original Autosys job: tcALBA_cnvldimg
         - Final image conversion step
         - Processes loaded images
         """
@@ -173,14 +166,13 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     # Error handling: Mail errors if rename fails
     alba_mail_errors_renimg = SSHOperator(
         task_id='alba_mail_errors_renimg',
-        ssh_conn_id=SSH_CONN_ID_VL101,
-        command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_mail_errors_renimg.sh',
+        ssh_conn_id=SSH_CONN_ID_1,
+        command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_mail_errors_renimg.sh ',
         trigger_rule=TriggerRule.ONE_FAILED,  # Runs only if alba_renimg fails
         dag=dag,
         doc_md="""
         **ALBA Mail Rename Errors Task**
         
-        Original Autosys job: tcALBA_mail_errors_renimg
         - Sends error notifications if image rename fails
         - Conditional task (f(tcALBA_renimg) in Autosys)
         """
@@ -195,7 +187,6 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
         doc_md="""
         **ALBA Success Event Task**
         
-        Original Autosys job: teALBA_SUCCESS_renimg
         - Sends success event when error handling completes
         - Originally used sendevent command
         """
@@ -204,13 +195,12 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     # Final step: Mail images summary
     alba_mail_images = SSHOperator(
         task_id='alba_mail_images',
-        ssh_conn_id=SSH_CONN_ID_VL105,
-        command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_mail_images.sh',
+        ssh_conn_id=SSH_CONN_ID_2,
+        command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_mail_images.sh ',
         dag=dag,
         doc_md="""
         **ALBA Mail Images Summary Task**
         
-        Original Autosys job: tcALBA_mail_images
         - Sends summary email of image processing results
         - Final task in image processing workflow
         """
@@ -219,12 +209,11 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
 # XML Processing Task (depends on both XML and no-images file watchers)
 alba_mv_xml = SSHOperator(
     task_id='alba_mv_xml',
-    ssh_conn_id=SSH_CONN_ID_VL105,
-    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_mv_XML2IArcanum.sh',
+    ssh_conn_id=SSH_CONN_ID_2,
+    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_mv_XML2IArcanum.sh ',
     doc_md="""
     **ALBA Move XML Task**
     
-    Original Autosys job: tcALBA_mv_XML
     - Moves XML files to IArcanum system
     - Requires both XML and no-images conditions to be met
     """
