@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 SCRIPT_PATH = "e:\\local\\OPSi_monitor\\proc\\OPSi_monitor.cmd"
 LOG_DIR = "E:\\Local\\OPSi_monitor\\log"
-WINRM_CONN_ID = "topr-vw103" 
+WINRM_CONN_ID = "topr_vw103" 
 
 default_args = {
     'email_on_failure': False,  # alarm_if_fail: 0 means no alerts

@@ -26,7 +26,7 @@ dag = DAG(
     description='Image processing and monitoring',
     schedule=None, # Manual trigger or sensor-based
     catchup=False,
-    tags=['test','alba','datdproc'],
+    tags=['test','alba','dataproc','conversion'],
 )
 
 # SSH Connection IDs

@@ -22,7 +22,7 @@ dag = DAG(
     description='Download and prepare image data from Unumbio',
     schedule=None,  # Manual trigger or can be scheduled as needed
     catchup=False,
-    tags=['alba', 'ingestion', 'dataproc', 'unumbio'],
+    tags=['test','alba','dataproc','ingestion','unumbio'],
 )
 
 # SSH Connection ID for tgen-vl105 server
