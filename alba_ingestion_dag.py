@@ -32,7 +32,7 @@ SSH_CONN_ID = 'tgen_vl105'
 alba_download_imgdata = SSHOperator(
     task_id='alba_download_imgdata',
     ssh_conn_id=SSH_CONN_ID,
-    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_dld_img_data_from_unumbio.sh  ',
+    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_dld_img_data_from_unumbio.sh ',
     dag=dag,
     doc_md="""
     **ALBA Download Image Data Task**
@@ -45,11 +45,11 @@ alba_download_imgdata = SSHOperator(
 )
 
 # Task 2: Prepare image data 
-# Condition: s(tcALBA_dldimgdata) - success of download task
+# Condition: success of download task
 alba_prepare_imgdata = SSHOperator(
     task_id='alba_prepare_imgdata',
     ssh_conn_id=SSH_CONN_ID,
-    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_prepdataimg.sh  ',
+    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_prepdataimg.sh ',
     dag=dag,
     doc_md="""
     **ALBA Prepare Image Data Task**
@@ -65,5 +65,5 @@ alba_prepare_imgdata = SSHOperator(
 )
 
 # Define task dependencies
-# Sequential execution: download -> prepare (matching Autosys condition s(tcALBA_dldimgdata))
+# Sequential execution: download -> prepare
 alba_download_imgdata >> alba_prepare_imgdata
