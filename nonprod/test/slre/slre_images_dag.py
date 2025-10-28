@@ -12,7 +12,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils.common_utils import SSHConnections, get_environment_from_path
+from utils.common_utils import get_environment_from_path
 
 # Get environment from current DAG path
 env_lower = get_environment_from_path(__file__)
