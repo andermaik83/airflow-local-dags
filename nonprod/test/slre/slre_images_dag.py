@@ -12,7 +12,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path
+from utils.common_utils import get_environment_from_path, SSHConnections
 
 # Get environment from current DAG path
 ENV = get_environment_from_path(__file__)
@@ -40,7 +40,7 @@ dag = DAG(
 )
 
 # SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = "tgen_vl101"  # Main processing server
+SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
 
 # TaskGroup representing BOX tbSLRE_images
 with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:

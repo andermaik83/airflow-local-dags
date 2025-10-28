@@ -3,7 +3,6 @@ from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.sensors.filesystem import FileSensor
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 import os
@@ -13,7 +12,11 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils.common_utils import check_file_exists, get_environment_from_path
+from utils.common_utils import (
+    get_environment_from_path, 
+    check_file,
+    SSHConnections
+)
 
 # Get environment from current DAG path
 ENV = get_environment_from_path(__file__)
@@ -40,9 +43,9 @@ dag = DAG(
     tags=[env, app_name,'dataproc','conversion'],
 )
 
-# SSH Connection IDs
-SSH_CONN_ID_1 = 'tgen_vl101'  # For tgen-vl101 server
-SSH_CONN_ID_2 = 'tgen_vl105'  # For tgen-vl105 server
+# SSH Connection IDs (using constants from shared utilities)
+SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # For tgen-vl101 server
+SSH_CONN_ID_2 = SSHConnections.TGEN_VL105  # For tgen-vl105 server
 
 # File paths for monitoring
 ALBA_IMG_ISSUE_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_imgissue.par"
@@ -65,48 +68,51 @@ alba_checkissue = SSHOperator(
     """
 )
 
-# Task Group for File Watchers (equivalent to FT jobs)
+# Task Group for File Watchers (equivalent to FT jobs) - Now using simple SSHOperator
 with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
     
-    # File watcher for images issue
-    alba_check_images = PythonOperator(
+    # File watcher for images issue - using simple SSH command
+    alba_check_images = SSHOperator(
         task_id=f'alba_check_images_{env}',
-        python_callable=check_file_exists,
-        op_kwargs={'filepath': ALBA_IMG_ISSUE_FILE, 'ssh_conn_id': SSH_CONN_ID_2},
+        ssh_conn_id=SSH_CONN_ID_2,
+        command=check_file(ALBA_IMG_ISSUE_FILE),
         dag=dag,
         doc_md="""
         **ALBA Check Images File Watcher**
         
         - Monitors creation of ALBA_imgissue.par file
         - Triggers image processing workflow when file is created
+        - Uses simple SSH test command for file existence
         """
     )
     
-    # File watcher for XML issue
-    alba_check_xml = PythonOperator(
+    # File watcher for XML issue - using simple SSH command
+    alba_check_xml = SSHOperator(
         task_id=f'alba_check_xml_{env}',
-        python_callable=check_file_exists,
-        op_kwargs={'filepath': ALBA_XML_ISSUE_FILE, 'ssh_conn_id': SSH_CONN_ID_2},
+        ssh_conn_id=SSH_CONN_ID_2,
+        command=check_file(ALBA_XML_ISSUE_FILE),
         dag=dag,
         doc_md="""
         **ALBA Check XML File Watcher**
         
         - Monitors creation of ALBA_xmlissue.par file
         - Part of XML processing workflow
+        - Uses simple SSH test command for file existence
         """
     )
     
-    # File watcher for no images
-    alba_check_noimages = PythonOperator(
+    # File watcher for no images - using simple SSH command
+    alba_check_noimages = SSHOperator(
         task_id=f'alba_check_noimages_{env}',
-        python_callable=check_file_exists,
-        op_kwargs={'filepath': ALBA_NO_IMG_FILE, 'ssh_conn_id': SSH_CONN_ID_2},
+        ssh_conn_id=SSH_CONN_ID_2,
+        command=check_file(ALBA_NO_IMG_FILE),
         dag=dag,
         doc_md="""
         **ALBA Check No Images File Watcher**
         
         - Monitors creation of ALBA_noimgtoprocess file
         - Indicates no images to process condition
+        - Uses simple SSH test command for file existence
         """
     )
 

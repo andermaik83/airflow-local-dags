@@ -3,7 +3,6 @@ from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.filesystem import FileSensor
-from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 import logging
@@ -14,7 +13,12 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils import check_file_exists, check_file_exists_with_pattern, get_environment_from_path
+from utils.common_utils import (
+    get_environment_from_path, 
+    SSHConnections,
+    check_file,
+    check_file_pattern
+)
 
 # Get environment from current DAG path
 ENV = get_environment_from_path(__file__)
@@ -42,22 +46,13 @@ dag = DAG(
 )
 
 # SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = "tgen_vl101"  # Main processing server
-SSH_CONN_ID_2 = "tgen_vl105"  # File monitoring server
+SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
+SSH_CONN_ID_2 = SSHConnections.TGEN_VL105  # File monitoring server
 
 # SLRE-specific file paths (dynamic based on environment)
 SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 SLRE_AUTOIDX_FILE = f"/{ENV}/SHR/SLRE/work/autoidx"
 SLRE_BATCHPROC_PATTERN = f"/{ENV}/SHR/SLRE/work/batchproc*"
-
-# File sensor functions using shared utilities
-def check_pend_file(**context):
-    """Check for autoidx file - tfSLRE_pend equivalent"""
-    return check_file_exists(SLRE_AUTOIDX_FILE, SSH_CONN_ID_2)
-
-def check_book_file(**context):
-    """Check for batchproc file - tfSLRE_book equivalent"""
-    return check_file_exists_with_pattern(SLRE_BATCHPROC_PATTERN, SSH_CONN_ID_2)
 
 # Preparation task for TRM processing
 slre_preptrm = SSHOperator(
@@ -129,10 +124,11 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
     # Define dependencies within TRM TaskGroup
     slre_cnvtrm >> slre_mrgtrm >> slre_check_bpfiles
 
-# File sensors for pending processes (triggered after TRM completion)
-sensor_pend_file = PythonOperator(
+# File sensors for pending processes (triggered after TRM completion) - Using simple SSH commands
+sensor_pend_file = SSHOperator(
     task_id='tfSLRE_pend_sensor',
-    python_callable=check_pend_file,
+    ssh_conn_id=SSH_CONN_ID_2,
+    command=check_file(SLRE_AUTOIDX_FILE),
     dag=dag,
     email_on_failure=True,  # alarm_if_fail: 1
     doc_md="""
@@ -141,12 +137,14 @@ sensor_pend_file = PythonOperator(
     **Purpose:**
     - Monitors for autoidx file creation
     - Triggers pending TRM processing workflow
+    - Uses simple SSH test command for file existence
     """
 )
 
-sensor_book_file = PythonOperator(
+sensor_book_file = SSHOperator(
     task_id='tfSLRE_book_sensor',
-    python_callable=check_book_file,
+    ssh_conn_id=SSH_CONN_ID_2,
+    command=check_file_pattern(SLRE_BATCHPROC_PATTERN),
     dag=dag,
     email_on_failure=True,  # alarm_if_fail: 1
     doc_md="""
@@ -155,6 +153,7 @@ sensor_book_file = PythonOperator(
     **Purpose:**
     - Monitors for batchproc files creation
     - Triggers book processing workflow
+    - Uses simple SSH pattern check for file existence
     """
 )
 

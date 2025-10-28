@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
-from airflow import DAG
+f# SSH Connection IDs (using shared constants)
+SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing serverm airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -13,7 +14,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path, check_file_exists
+from utils.common_utils import get_environment_from_path, SSHConnections, check_file_exists
 
 # Get environment from current DAG path
 ENV = get_environment_from_path(__file__)
@@ -129,7 +130,7 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
     slre_cleanup_vc = SSHOperator(
         task_id='tcSLRE_cleanup_vc',
         ssh_conn_id=SSH_CONN_ID_1,
-        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_cleanupvc.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_cleanupvc.sh ',
         dag=dag,
         email_on_failure=True,  # alarm_if_fail: 1
         doc_md="""
