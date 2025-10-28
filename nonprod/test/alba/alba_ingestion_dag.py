@@ -80,4 +80,4 @@ alba_prepare_imgdata = SSHOperator(
 
 # Define task dependencies
 # Sequential execution: download -> prepare
-f'alba_download_imgdata_{env}' >> f'alba_prepare_imgdata_{env}'
+alba_download_imgdata >> alba_prepare_imgdata
