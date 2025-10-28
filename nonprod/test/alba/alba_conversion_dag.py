@@ -54,7 +54,7 @@ ALBA_NO_IMG_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_noimgtoprocess"
 alba_checkissue = SSHOperator(
     task_id=f'alba_checkissue_{env}',
     ssh_conn_id=SSH_CONN_ID_2,
-    command=f'/{ENV}LIB/ALBA/ALBA_oper/proc/ALBA_chkissues.sh ',
+    command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_chkissues.sh ',
     dag=dag,
     doc_md="""
     **ALBA Check Issues Task**
@@ -214,14 +214,14 @@ alba_mv_xml = SSHOperator(
 # Define task dependencies
 
 # 1. Check issues must run first (prerequisite for file watchers)
-f'alba_checkissue_{env}' >> f'file_watchers_group_{env}
+alba_checkissue >> file_watchers_group
 
 # 2. Image processing workflow dependencies
-f'alba_check_images_{env}' >> image_processing_group
-f'alba_renimg_{env}' >> f'alba_cnvimg_{env}' >> f'alba_cnvldimg_{env}' >> f'alba_mail_images_{env}'
+alba_check_images >> image_processing_group
+alba_renimg >> alba_cnvimg >> alba_cnvldimg >> alba_mail_images
 
 # 3. Error handling path
-f'alba_renimg_{env}' >> f'alba_mail_errors_renimg_{env}' >> f'alba_success_renimg_{env}'
+alba_renimg >> alba_mail_errors_renimg >> alba_success_renimg
 
 # 4. XML processing depends on both XML and no-images checks
-[f'alba_check_xml_{env}', f'alba_check_noimages_{env}'] >> f'alba_mv_xml_{env}'
+[alba_check_xml, alba_check_noimages] >> alba_mv_xml

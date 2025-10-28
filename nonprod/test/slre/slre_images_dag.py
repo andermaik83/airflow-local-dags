@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 import logging
@@ -21,7 +21,7 @@ app_name = os.path.basename(os.path.dirname(__file__))
 
 # DAG Definition
 default_args = {
-    'owner': 'airflow',
+    'owner': 'test',
     'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': False, 
@@ -33,7 +33,7 @@ default_args = {
 dag = DAG(
     f'{app_name}_images_{env_lower}',
     default_args=default_args,
-    description=f'SLRE Images Processing Pipeline - BOX tbSLRE_images workflow - {ENV}',
+    description='SLRE Images Processing Pipeline - BOX tbSLRE_images workflow',
     schedule=None,  # Manual trigger or external dependency
     catchup=False,
     tags=[env_lower, app_name, 'dataproc', 'images'],
@@ -51,14 +51,12 @@ with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_renimg/proc/SLRE_renimg.sh ',
         dag=dag,
-        doc_md=f"""
-        **SLRE Rename Images Task - {ENV}**
+        doc_md="""
+        **SLRE Rename Images Task**
         
         **Purpose:**
         - First step in SLRE images processing
         - Renames and organizes image files for processing
-        - Environment: {ENV}
-        - Command: /{ENV}/LIB/SLRE/SLRE_renimg/proc/SLRE_renimg.sh
         """
     )
     
@@ -68,14 +66,12 @@ with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_grpimgs/proc/SLRE_startgrpimgs.sh ',
         dag=dag,
-        doc_md=f"""
-        **SLRE Group Images Task - {ENV}**
+        doc_md="""
+        **SLRE Group Images Task**
         
         **Purpose:**
         - Groups and organizes renamed images
         - Prepares images for conversion processing
-        - Environment: {ENV}
-        - Command: /{ENV}/LIB/SLRE/SLRE_grpimgs/proc/SLRE_startgrpimgs.sh
         """
     )
     
@@ -85,14 +81,12 @@ with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_cnvimg/proc/SLRE_cnvimg.sh ',
         dag=dag,
-        doc_md=f"""
-        **SLRE Convert Images Task - {ENV}**
+        doc_md="""
+        **SLRE Convert Images Task**
         
         **Purpose:**
         - Converts images to required format
-        - Processes grouped images for loading
-        - Environment: {ENV}
-        - Command: /{ENV}/LIB/SLRE/SLRE_cnvimg/proc/SLRE_cnvimg.sh        
+        - Processes grouped images for loading        
         """
     )
     
@@ -102,14 +96,12 @@ with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_cnvldimg/proc/SLRE_cnvldimg.sh ',
         dag=dag,
-        doc_md=f"""
-        **SLRE Load Images Task - {ENV}**
+        doc_md="""
+        **SLRE Load Images Task**
         
         **Purpose:**
         - Final step in image processing pipeline
         - Loads converted images into target system
-        - Environment: {ENV}
-        - Command: /{ENV}/LIB/SLRE/SLRE_cnvldimg/proc/SLRE_cnvldimg.sh
         """
     )
     
@@ -122,13 +114,11 @@ slre_cleanup_shrdir = SSHOperator(
     ssh_conn_id=SSH_CONN_ID_1,
     command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_cleanup_SHRDIR.sh 490',
     dag=dag,
-    doc_md=f"""
-    **SLRE Cleanup Shared Directory Task - {ENV}**
+    doc_md="""
+    **SLRE Cleanup Shared Directory Task**
     
     **Purpose:**
     - Cleanup shared directory maintenance
     - Scheduled for Sunday 19:00
-    - Environment: {ENV}
-    - Command: /{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_cleanup_SHRDIR.sh 490
     """
 )

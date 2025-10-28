@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 import logging
@@ -111,7 +111,7 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
     )
     
     # Define dependencies within the TaskGroup
-    f'slre_cnvviennacodexml_{env}' >> f'slre_mv2bpvc_{env}' >> f'slre_autobp_vc_{env}' >> f'slre_cleanup_vc_{env}'
+    slre_cnvviennacodexml >> slre_mv2bpvc >> slre_autobp_vc >> slre_cleanup_vc
 
 # Standalone preparation task for Vienna codes
 slre_prepvcd = SSHOperator(

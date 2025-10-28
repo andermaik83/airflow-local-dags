@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sensors.filesystem import FileSensor
 from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
@@ -267,15 +267,15 @@ with TaskGroup(group_id='tbSLRE_trmbook', dag=dag) as trmbook_taskgroup:
     )
     
     # Dependencies within trmbook TaskGroup
-    f'slre_move2bptrm_bp_{env}' >> f'slre_mailtrmbook_{env}'
+    slre_move2bptrm_bp >> slre_mailtrmbook
 
 # Define main workflow dependencies
 # Preparation triggers TRM processing
-f'slre_preptrm_{env}' >> trm_taskgroup
+slre_preptrm >> trm_taskgroup
 
 # TRM completion triggers file sensors
-trm_taskgroup >> [f'sensor_pend_file_{env}', f'sensor_book_file_{env}']
+trm_taskgroup >> [sensor_pend_file, sensor_book_file]
 
 # File sensors trigger their respective processing groups
-f'sensor_pend_file_{env}' >> trmpend_taskgroup
-f'sensor_book_file_{env}' >> trmbook_taskgroup
+sensor_pend_file >> trmpend_taskgroup
+sensor_book_file >> trmbook_taskgroup
