@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -47,15 +48,11 @@ SSH_CONN_ID_3 = "topr_vw103"  # Windows server for batch processing
 # SLRE VCD file path for monitoring
 SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 
-# File sensor function for VCD start file
-def check_vcd_start_file(**context):
-    """Check for VCD start file - tfSLRE_start_VCD equivalent"""
-    return check_file_exists(SLRE_VCD_BUSY_FILE, SSH_CONN_ID_1)
-
-# File sensor task - tfSLRE_start_VCD_sensor
-tfSLRE_start_VCD_sensor = PythonOperator(
+# File sensor task - tfSLRE_start_VCD_sensor (using simple SSH command)
+tfSLRE_start_VCD_sensor = SSHOperator(
     task_id='tfSLRE_start_VCD_sensor',
-    python_callable=check_vcd_start_file,
+    ssh_conn_id=SSH_CONN_ID_1,
+    command=check_file_exists(SLRE_VCD_BUSY_FILE),
     dag=dag,
     email_on_failure=False,  # alarm_if_fail: 0
     doc_md=f"""
