@@ -147,19 +147,3 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
 # Define main workflow dependencies
 # File sensor triggers Vienna codes processing
 tfSLRE_start_VCD_sensor >> viennacodes_taskgroup
-
-# Standalone preparation task for Vienna codes (independent)
-slre_prepvcd = SSHOperator(
-    task_id='tcSLRE_prepvcd',
-    ssh_conn_id=SSH_CONN_ID_1,
-    command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_prepvcd.sh ',
-    dag=dag,
-    email_on_failure=False,  # alarm_if_fail: 0
-    doc_md="""
-    **SLRE Prepare VCD Task**
-    
-    **Purpose:**
-    - Prepares Vienna code data for processing
-    - Standalone preparation task
-    """
-)

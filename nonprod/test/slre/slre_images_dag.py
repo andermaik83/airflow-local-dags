@@ -107,18 +107,3 @@ with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:
     
     # Define dependencies within the TaskGroup
     slre_renimg >> slre_grpimgs >> slre_cnvimg >> slre_ldimg
-
-# Standalone cleanup task - scheduled separately (Sunday 19:00)
-slre_cleanup_shrdir = SSHOperator(
-    task_id='tcSLRE_cleanup_SHRDIR',
-    ssh_conn_id=SSH_CONN_ID_1,
-    command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_cleanup_SHRDIR.sh 490',
-    dag=dag,
-    doc_md="""
-    **SLRE Cleanup Shared Directory Task**
-    
-    **Purpose:**
-    - Cleanup shared directory maintenance
-    - Scheduled for Sunday 19:00
-    """
-)
