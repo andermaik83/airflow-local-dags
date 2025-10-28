@@ -16,7 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 from utils.common_utils import (
     get_environment_from_path, 
     SSHConnections,
-    check_file,
+    check_file_exists,
     check_file_pattern
 )
 
@@ -128,7 +128,7 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
 sensor_pend_file = SSHOperator(
     task_id='tfSLRE_pend_sensor',
     ssh_conn_id=SSH_CONN_ID_2,
-    command=check_file(SLRE_AUTOIDX_FILE),
+    command=check_file_exists(SLRE_AUTOIDX_FILE),
     dag=dag,
     email_on_failure=True,  # alarm_if_fail: 1
     doc_md="""
