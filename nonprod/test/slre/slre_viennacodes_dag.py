@@ -5,6 +5,19 @@ from airflow.operators.dummy import DummyOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 import logging
+import os
+import sys
+
+# Add path for importing shared utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+
+# Import shared utilities
+from utils.common_utils import SSHConnections, get_environment_from_path
+
+# Get environment from current DAG path
+env_lower = get_environment_from_path(__file__)
+ENV = env_lower.upper()
+app_name = os.path.basename(os.path.dirname(__file__))
 
 # DAG Definition
 default_args = {
@@ -18,17 +31,17 @@ default_args = {
 }
 
 dag = DAG(
-    'slre_viennacodes_dag',
+    f'{app_name}_viennacodes_{env_lower}',
     default_args=default_args,
     description='SLRE Vienna Codes Processing Pipeline',
     schedule=None,  # Triggered by file sensor tfSLRE_start_VCD
     catchup=False,
-    tags=['test', 'slre', 'dataproc', 'viennacodes'],
+    tags=[env_lower, app_name, 'dataproc', 'viennacodes'],
 )
 
-# SSH Connection IDs
-SSH_CONN_ID_1 = 'tgen_vl101'  # Linux processing server
-SSH_CONN_ID_3 = 'topr_vw103'  # Windows server for batch processing
+# SSH Connection IDs (using shared constants)
+SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Linux processing server
+SSH_CONN_ID_3 = SSHConnections.TOPR_VW103  # Windows server for batch processing
 
 # TaskGroup representing BOX tbSLRE_viennacodes
 with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
@@ -37,7 +50,7 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
     slre_cnvviennacodexml = SSHOperator(
         task_id='tcSLRE_cnvviennacodexml',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_cnvviennacodexml/proc/SLRE_cnvviennacodexml.sh ',
+        command=f'/{ENV}/LIB/SLRE/SLRE_cnvviennacodexml/proc/SLRE_cnvviennacodexml.sh ',
         dag=dag,
         email_on_failure=True,  # alarm_if_fail: 1
         doc_md="""
@@ -53,7 +66,7 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
     slre_mv2bpvc = SSHOperator(
         task_id='tcSLRE_mv2bpvc',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bpvc.sh ',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bpvc.sh ',
         dag=dag,
         email_on_failure=True,  # alarm_if_fail: 1
         doc_md="""
@@ -85,7 +98,7 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
     slre_cleanup_vc = SSHOperator(
         task_id='tcSLRE_cleanup_vc',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_oper/proc/SLRE_cleanupvc.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_cleanupvc.sh',
         dag=dag,
         email_on_failure=True,  # alarm_if_fail: 1
         doc_md="""
@@ -98,13 +111,13 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
     )
     
     # Define dependencies within the TaskGroup
-    slre_cnvviennacodexml >> slre_mv2bpvc >> slre_autobp_vc >> slre_cleanup_vc
+    f'slre_cnvviennacodexml_{env}' >> f'slre_mv2bpvc_{env}' >> f'slre_autobp_vc_{env}' >> f'slre_cleanup_vc_{env}'
 
 # Standalone preparation task for Vienna codes
 slre_prepvcd = SSHOperator(
     task_id='tcSLRE_prepvcd',
     ssh_conn_id=SSH_CONN_ID_1,
-    command='/TEST/LIB/SLRE/SLRE_oper/proc/SLRE_prepvcd.sh ',
+    command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_prepvcd.sh ',
     dag=dag,
     email_on_failure=False,  # alarm_if_fail: 0
     doc_md="""

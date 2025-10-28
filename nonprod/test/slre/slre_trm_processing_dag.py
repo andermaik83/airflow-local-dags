@@ -3,11 +3,23 @@ from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.operators.dummy import DummyOperator
 from airflow.sensors.filesystem import FileSensor
-from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 import logging
+import os
+import sys
+
+# Add path for importing shared utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+
+# Import shared utilities
+from utils import check_file_exists, check_file_exists_with_pattern, SSHConnections, get_environment_from_path
+
+# Get environment from current DAG path
+env_lower = get_environment_from_path(__file__)
+ENV = env_lower.upper()
+app_name = os.path.basename(os.path.dirname(__file__))
 
 # DAG Definition
 default_args = {
@@ -21,52 +33,35 @@ default_args = {
 }
 
 dag = DAG(
-    'slre_trm_processing_dag',
+    f'{app_name}_trm_processing_{env_lower}',
     default_args=default_args,
     description='SLRE TRM Processing Pipeline',
     schedule=None,  # Manual trigger or external dependency
     catchup=False,
-    tags=['test', 'slre', 'dataproc', 'trm', 'sensors'],
+    tags=[env_lower, app_name, 'dataproc', 'trm', 'sensors'],
 )
 
-# SSH Connection IDs
-SSH_CONN_ID_1 = 'tgen_vl101'  # Main processing server
-SSH_CONN_ID_2 = 'tgen_vl105'  # File monitoring server
+# SSH Connection IDs (using shared constants)
+SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
+SSH_CONN_ID_2 = SSHConnections.TGEN_VL105  # File monitoring server
 
-# Helper function for SSH file checking
-def check_file_exists_ssh(filepath, ssh_conn_id):
-    """Check if a file exists on remote server via SSH"""
-    try:
-        ssh_hook = SSHHook(ssh_conn_id=ssh_conn_id)
-        with ssh_hook.get_conn() as ssh_client:
-            stdin, stdout, stderr = ssh_client.exec_command(f'test -f {filepath} && echo "EXISTS" || echo "NOT_EXISTS"')
-            result = stdout.read().decode().strip()
-            return result == "EXISTS"
-    except Exception as e:
-        logging.error(f"Error checking file {filepath}: {str(e)}")
-        return False
+# SLRE-specific file paths (dynamic based on environment)
+SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
+SLRE_AUTOIDX_FILE = f"/{ENV}/SHR/SLRE/work/autoidx"
+SLRE_BATCHPROC_PATTERN = f"/{ENV}/SHR/SLRE/work/batchproc*"
 
-# File sensor functions
-def check_vcd_file():
+# File sensor functions using shared utilities
+def check_vcd_file(**context):
     """Check for VCD start file - tfSLRE_start_VCD equivalent"""
-    return check_file_exists_ssh("/TEST/SHR/SLRE/work/SLRE_VCD.busy", SSH_CONN_ID_2)
+    return check_file_exists(SLRE_VCD_BUSY_FILE, SSH_CONN_ID_2)
 
-def check_pend_file():
+def check_pend_file(**context):
     """Check for autoidx file - tfSLRE_pend equivalent"""
-    return check_file_exists_ssh("/TEST/SHR/SLRE/work/autoidx", SSH_CONN_ID_2)
+    return check_file_exists(SLRE_AUTOIDX_FILE, SSH_CONN_ID_2)
 
-def check_book_file():
+def check_book_file(**context):
     """Check for batchproc file - tfSLRE_book equivalent"""
-    # Using glob pattern check for batchproc*
-    try:
-        ssh_hook = SSHHook(ssh_conn_id=SSH_CONN_ID_2)
-        with ssh_hook.get_conn() as ssh_client:
-            stdin, stdout, stderr = ssh_client.exec_command('ls /TEST/SHR/SLRE/work/batchproc* 2>/dev/null | wc -l')
-            result = stdout.read().decode().strip()
-            return int(result) > 0
-    except Exception as e:
-        logging.error(f"Error checking batchproc files: {str(e)}")
-        return False
+    return check_file_exists_with_pattern(SLRE_BATCHPROC_PATTERN, SSH_CONN_ID_2)
 
 # File sensor tasks replacing FT jobs
 sensor_vcd_start = PythonOperator(
@@ -87,7 +82,7 @@ sensor_vcd_start = PythonOperator(
 slre_preptrm = SSHOperator(
     task_id='tcSLRE_preptrm',
     ssh_conn_id=SSH_CONN_ID_1,
-    command='/TEST/LIB/SLRE/SLRE_oper/proc/SLRE_preptrm.sh 2022 0913 20220913',
+    command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_preptrm.sh 2022 0913 20220913',
     dag=dag,
     email_on_failure=False,  # alarm_if_fail: 0
     doc_md="""
@@ -106,7 +101,7 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
     slre_cnvtrm = SSHOperator(
         task_id='tcSLRE_cnvtrm',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_cnvtrm/proc/SLRE_cnvtrm.sh 6000',
+        command=f'/{ENV}/LIB/SLRE/SLRE_cnvtrm/proc/SLRE_cnvtrm.sh 6000',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -122,7 +117,7 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
     slre_mrgtrm = SSHOperator(
         task_id='tcSLRE_mrgtrm',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_mrgtrm/proc/SLRE_mrgtrm.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_mrgtrm/proc/SLRE_mrgtrm.sh',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -138,7 +133,7 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
     slre_check_bpfiles = SSHOperator(
         task_id='tcSLRE_check_bpfiles',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_oper/proc/SLRE_checkbpfiles.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_checkbpfiles.sh',
         dag=dag,
         email_on_failure=True,  # alarm_if_fail: 1
         doc_md="""
@@ -189,7 +184,7 @@ with TaskGroup(group_id='tbSLRE_trmpend', dag=dag) as trmpend_taskgroup:
     slre_autoidxtrm = SSHOperator(
         task_id='tcSLRE_autoidxtrm',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/TIPSi/TIPSi_indexing/proc/TIPSi_indexing.sh SLRE output_mrgtrm output_autoidx',
+        command=f'/{ENV}/LIB/TIPSi/TIPSi_indexing/proc/TIPSi_indexing.sh SLRE output_mrgtrm output_autoidx',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -205,7 +200,7 @@ with TaskGroup(group_id='tbSLRE_trmpend', dag=dag) as trmpend_taskgroup:
     slre_move2bptrm_autoidx = SSHOperator(
         task_id='tcSLRE_move2bptrm_autoidx',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bptrm.sh autoidx',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bptrm.sh autoidx',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -221,7 +216,7 @@ with TaskGroup(group_id='tbSLRE_trmpend', dag=dag) as trmpend_taskgroup:
     slre_mailtrmpend = SSHOperator(
         task_id='tcSLRE_mailtrmpend',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_oper/proc/SLRE_mailpend.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mailpend.sh',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -243,7 +238,7 @@ with TaskGroup(group_id='tbSLRE_trmbook', dag=dag) as trmbook_taskgroup:
     slre_move2bptrm_bp = SSHOperator(
         task_id='tcSLRE_move2bptrm_bp',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bptrm.sh batchproc',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bptrm.sh batchproc',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -259,7 +254,7 @@ with TaskGroup(group_id='tbSLRE_trmbook', dag=dag) as trmbook_taskgroup:
     slre_mailtrmbook = SSHOperator(
         task_id='tcSLRE_mailtrmbook',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/TEST/LIB/SLRE/SLRE_oper/proc/SLRE_mailbook.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mailbook.sh',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -272,15 +267,15 @@ with TaskGroup(group_id='tbSLRE_trmbook', dag=dag) as trmbook_taskgroup:
     )
     
     # Dependencies within trmbook TaskGroup
-    slre_move2bptrm_bp >> slre_mailtrmbook
+    f'slre_move2bptrm_bp_{env}' >> f'slre_mailtrmbook_{env}'
 
 # Define main workflow dependencies
 # Preparation triggers TRM processing
-slre_preptrm >> trm_taskgroup
+f'slre_preptrm_{env}' >> trm_taskgroup
 
 # TRM completion triggers file sensors
-trm_taskgroup >> [sensor_pend_file, sensor_book_file]
+trm_taskgroup >> [f'sensor_pend_file_{env}', f'sensor_book_file_{env}']
 
 # File sensors trigger their respective processing groups
-sensor_pend_file >> trmpend_taskgroup
-sensor_book_file >> trmbook_taskgroup
+f'sensor_pend_file_{env}' >> trmpend_taskgroup
+f'sensor_book_file_{env}' >> trmbook_taskgroup

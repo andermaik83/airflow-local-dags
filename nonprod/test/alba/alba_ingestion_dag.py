@@ -3,7 +3,21 @@ from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
-import logging
+
+import os
+import sys
+
+# Add path for importing shared utilities
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+
+# Import shared utilities
+from utils.common_utils import check_file_exists, get_environment_from_path
+
+# Get environment from current DAG path
+ENV = get_environment_from_path(__file__)
+env = ENV.lower()
+app_name = os.path.basename(os.path.dirname(__file__))
+
 
 # DAG Definition
 default_args = {
@@ -17,12 +31,12 @@ default_args = {
 }
 
 dag = DAG(
-    'alba_ingestion_dag',
+    f'{app_name}_ingestion_dag_{env}',
     default_args=default_args,
     description='Download and prepare image data from Unumbio',
     schedule=None,  # Manual trigger or can be scheduled as needed
     catchup=False,
-    tags=['test','alba','dataproc','ingestion','unumbio'],
+    tags=[env, app_name,'dataproc','ingestion','unumbio'],
 )
 
 # SSH Connection ID for tgen-vl105 server
@@ -30,9 +44,9 @@ SSH_CONN_ID = 'tgen_vl105'
 
 # Task 1: Download image data from Unumbio
 alba_download_imgdata = SSHOperator(
-    task_id='alba_download_imgdata',
+    task_id=f'alba_download_imgdata_{env}',
     ssh_conn_id=SSH_CONN_ID,
-    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_dld_img_data_from_unumbio.sh ',
+    command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_dld_img_data_from_unumbio.sh ',
     dag=dag,
     doc_md="""
     **ALBA Download Image Data Task**
@@ -47,9 +61,9 @@ alba_download_imgdata = SSHOperator(
 # Task 2: Prepare image data 
 # Condition: success of download task
 alba_prepare_imgdata = SSHOperator(
-    task_id='alba_prepare_imgdata',
+    task_id=f'alba_prepare_imgdata_{env}',
     ssh_conn_id=SSH_CONN_ID,
-    command='/TEST/LIB/ALBA/ALBA_oper/proc/ALBA_prepdataimg.sh ',
+    command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_prepdataimg.sh ',
     dag=dag,
     doc_md="""
     **ALBA Prepare Image Data Task**
@@ -66,4 +80,4 @@ alba_prepare_imgdata = SSHOperator(
 
 # Define task dependencies
 # Sequential execution: download -> prepare
-alba_download_imgdata >> alba_prepare_imgdata
+f'alba_download_imgdata_{env}' >> f'alba_prepare_imgdata_{env}'
