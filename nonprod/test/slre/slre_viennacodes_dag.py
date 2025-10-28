@@ -35,7 +35,7 @@ dag = DAG(
     f'{app_name}_viennacodes_{env}',
     default_args=default_args,
     description=f'SLRE Vienna Codes Processing Pipeline - {ENV}',
-    schedule='@continuous',  # Continuous scheduling for file sensor
+    schedule='*/5 * * * *',  # Check every 5 minutes for file
     catchup=False,
     max_active_runs=1,  # Prevent multiple concurrent runs
     tags=[env, app_name, 'dataproc', 'viennacodes', 'file-sensor'],
@@ -59,19 +59,17 @@ tfSLRE_start_VCD_sensor = PythonOperator(
     python_callable=check_vcd_start_file,
     dag=dag,
     email_on_failure=False,  # alarm_if_fail: 0
-    poke_interval=30,  # Check every 30 seconds
-    timeout=60*60*24,  # 24 hour timeout
     doc_md=f"""
     **SLRE VCD Start File Sensor - {ENV}**
     
     **Purpose:**
     - Monitors for VCD input files
-    - Triggers Vienna codes processing workflow automatically
+    - Triggers Vienna codes processing workflow when file exists
     - File monitored: {SLRE_VCD_BUSY_FILE}
     - Environment: {ENV}
     
     **Behavior:**
-    - Checks every 30 seconds for file existence
+    - Checks for file existence on each DAG run
     - Automatically triggers tbSLRE_viennacodes when file is found
     """
 )
@@ -157,13 +155,11 @@ slre_prepvcd = SSHOperator(
     command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_prepvcd.sh ',
     dag=dag,
     email_on_failure=False,  # alarm_if_fail: 0
-    doc_md=f"""
-    **SLRE Prepare VCD Task - {ENV}**
+    doc_md="""
+    **SLRE Prepare VCD Task**
     
     **Purpose:**
     - Prepares Vienna code data for processing
-    - Standalone preparation task (runs independently)
-    - Environment: {ENV}
-    - Command: /{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_prepvcd.sh
+    - Standalone preparation task
     """
 )
