@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.operators.empty import EmptyOperator
+from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 import logging
@@ -12,7 +13,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path
+from utils.common_utils import get_environment_from_path, check_file_exists
 
 # Get environment from current DAG path
 ENV = get_environment_from_path(__file__)
@@ -33,15 +34,47 @@ default_args = {
 dag = DAG(
     f'{app_name}_viennacodes_{env}',
     default_args=default_args,
-    description='SLRE Vienna Codes Processing Pipeline',
-    schedule=None,  # Triggered by file sensor tfSLRE_start_VCD
+    description=f'SLRE Vienna Codes Processing Pipeline - {ENV}',
+    schedule='@continuous',  # Continuous scheduling for file sensor
     catchup=False,
-    tags=[env, app_name, 'dataproc', 'viennacodes'],
+    max_active_runs=1,  # Prevent multiple concurrent runs
+    tags=[env, app_name, 'dataproc', 'viennacodes', 'file-sensor'],
 )
 
 # SSH Connection IDs (using shared constants)
 SSH_CONN_ID_1 = "tgen-vl101"  # Linux processing server
 SSH_CONN_ID_3 = "topr_vw103"  # Windows server for batch processing
+
+# SLRE VCD file path for monitoring
+SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
+
+# File sensor function for VCD start file
+def check_vcd_start_file(**context):
+    """Check for VCD start file - tfSLRE_start_VCD equivalent"""
+    return check_file_exists(SLRE_VCD_BUSY_FILE, SSH_CONN_ID_1)
+
+# File sensor task - tfSLRE_start_VCD_sensor
+tfSLRE_start_VCD_sensor = PythonOperator(
+    task_id='tfSLRE_start_VCD_sensor',
+    python_callable=check_vcd_start_file,
+    dag=dag,
+    email_on_failure=False,  # alarm_if_fail: 0
+    poke_interval=30,  # Check every 30 seconds
+    timeout=60*60*24,  # 24 hour timeout
+    doc_md=f"""
+    **SLRE VCD Start File Sensor - {ENV}**
+    
+    **Purpose:**
+    - Monitors for VCD input files
+    - Triggers Vienna codes processing workflow automatically
+    - File monitored: {SLRE_VCD_BUSY_FILE}
+    - Environment: {ENV}
+    
+    **Behavior:**
+    - Checks every 30 seconds for file existence
+    - Automatically triggers tbSLRE_viennacodes when file is found
+    """
+)
 
 # TaskGroup representing BOX tbSLRE_viennacodes
 with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
@@ -113,18 +146,24 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
     # Define dependencies within the TaskGroup
     slre_cnvviennacodexml >> slre_mv2bpvc >> slre_autobp_vc >> slre_cleanup_vc
 
-# Standalone preparation task for Vienna codes
+# Define main workflow dependencies
+# File sensor triggers Vienna codes processing
+tfSLRE_start_VCD_sensor >> viennacodes_taskgroup
+
+# Standalone preparation task for Vienna codes (independent)
 slre_prepvcd = SSHOperator(
     task_id='tcSLRE_prepvcd',
     ssh_conn_id=SSH_CONN_ID_1,
     command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_prepvcd.sh ',
     dag=dag,
     email_on_failure=False,  # alarm_if_fail: 0
-    doc_md="""
-    **SLRE Prepare VCD Task**
+    doc_md=f"""
+    **SLRE Prepare VCD Task - {ENV}**
     
     **Purpose:**
     - Prepares Vienna code data for processing
-    - Standalone preparation task
+    - Standalone preparation task (runs independently)
+    - Environment: {ENV}
+    - Command: /{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_prepvcd.sh
     """
 )

@@ -51,10 +51,6 @@ SLRE_AUTOIDX_FILE = f"/{ENV}/SHR/SLRE/work/autoidx"
 SLRE_BATCHPROC_PATTERN = f"/{ENV}/SHR/SLRE/work/batchproc*"
 
 # File sensor functions using shared utilities
-def check_vcd_file(**context):
-    """Check for VCD start file - tfSLRE_start_VCD equivalent"""
-    return check_file_exists(SLRE_VCD_BUSY_FILE, SSH_CONN_ID_2)
-
 def check_pend_file(**context):
     """Check for autoidx file - tfSLRE_pend equivalent"""
     return check_file_exists(SLRE_AUTOIDX_FILE, SSH_CONN_ID_2)
@@ -62,21 +58,6 @@ def check_pend_file(**context):
 def check_book_file(**context):
     """Check for batchproc file - tfSLRE_book equivalent"""
     return check_file_exists_with_pattern(SLRE_BATCHPROC_PATTERN, SSH_CONN_ID_2)
-
-# File sensor tasks replacing FT jobs
-sensor_vcd_start = PythonOperator(
-    task_id='tfSLRE_start_VCD_sensor',
-    python_callable=check_vcd_file,
-    dag=dag,
-    email_on_failure=False,  # alarm_if_fail: 0
-    doc_md="""
-    **SLRE VCD Start File Sensor**
-    
-    **Purpose:**
-    - Monitors for VCD input files
-    - Triggers Vienna codes processing workflow    
-    """
-)
 
 # Preparation task for TRM processing
 slre_preptrm = SSHOperator(
