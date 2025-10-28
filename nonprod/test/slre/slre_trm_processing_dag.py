@@ -17,8 +17,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 from utils import check_file_exists, check_file_exists_with_pattern, get_environment_from_path
 
 # Get environment from current DAG path
-env_lower = get_environment_from_path(__file__)
-ENV = env_lower.upper()
+ENV = get_environment_from_path(__file__)
+env = ENV.lower()
 app_name = os.path.basename(os.path.dirname(__file__))
 
 # DAG Definition
@@ -33,17 +33,17 @@ default_args = {
 }
 
 dag = DAG(
-    f'{app_name}_trm_processing_{env_lower}',
+    f'{app_name}_trm_processing_{env}',
     default_args=default_args,
     description='SLRE TRM Processing Pipeline',
     schedule=None,  # Manual trigger or external dependency
     catchup=False,
-    tags=[env_lower, app_name, 'dataproc', 'trm', 'sensors'],
+    tags=[env, app_name, 'dataproc', 'trm', 'sensors'],
 )
 
 # SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
-SSH_CONN_ID_2 = SSHConnections.TGEN_VL105  # File monitoring server
+SSH_CONN_ID_1 = "tgen_vl101"  # Main processing server
+SSH_CONN_ID_2 = "tgen_vl105"  # File monitoring server
 
 # SLRE-specific file paths (dynamic based on environment)
 SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"

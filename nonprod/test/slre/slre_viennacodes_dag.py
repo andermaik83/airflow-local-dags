@@ -15,8 +15,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 from utils.common_utils import get_environment_from_path
 
 # Get environment from current DAG path
-env_lower = get_environment_from_path(__file__)
-ENV = env_lower.upper()
+ENV = get_environment_from_path(__file__)
+env = ENV.lower()
 app_name = os.path.basename(os.path.dirname(__file__))
 
 # DAG Definition
@@ -31,17 +31,17 @@ default_args = {
 }
 
 dag = DAG(
-    f'{app_name}_viennacodes_{env_lower}',
+    f'{app_name}_viennacodes_{env}',
     default_args=default_args,
     description='SLRE Vienna Codes Processing Pipeline',
     schedule=None,  # Triggered by file sensor tfSLRE_start_VCD
     catchup=False,
-    tags=[env_lower, app_name, 'dataproc', 'viennacodes'],
+    tags=[env, app_name, 'dataproc', 'viennacodes'],
 )
 
 # SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Linux processing server
-SSH_CONN_ID_3 = SSHConnections.TOPR_VW103  # Windows server for batch processing
+SSH_CONN_ID_1 = "tgen-vl101"  # Linux processing server
+SSH_CONN_ID_3 = "topr_vw103"  # Windows server for batch processing
 
 # TaskGroup representing BOX tbSLRE_viennacodes
 with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
