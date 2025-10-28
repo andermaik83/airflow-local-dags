@@ -1,6 +1,4 @@
 from datetime import datetime, timedelta
-f# SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing serverm airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator

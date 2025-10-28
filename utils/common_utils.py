@@ -42,7 +42,7 @@ def get_environment_from_path(file_path: str) -> str:
         return 'TEST'  # Default fallback
 
 
-def check_file(filepath: str) -> str:
+def check_file_exists(filepath: str) -> str:
     """
     Generate SSH command to check if file exists - for use with SSHOperator
     
@@ -55,10 +55,10 @@ def check_file(filepath: str) -> str:
     Example:
         # Use with SSHOperator
         check_task = SSHOperator(
-            task_id='check_file',
+            task_id='check_file_exists',
             ssh_conn_id='my_ssh_conn',
-            command=check_file('/path/to/file')
-        )
+            command=check_file_exists('/path/to/file')
+        )check_file_exists
     """
     return f'test -f {filepath}'
 

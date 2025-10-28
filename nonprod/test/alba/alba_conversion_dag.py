@@ -14,7 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 # Import shared utilities
 from utils.common_utils import (
     get_environment_from_path, 
-    check_file,
+    check_file_exists,
     SSHConnections
 )
 
@@ -75,7 +75,7 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
     alba_check_images = SSHOperator(
         task_id=f'alba_check_images_{env}',
         ssh_conn_id=SSH_CONN_ID_2,
-        command=check_file(ALBA_IMG_ISSUE_FILE),
+        command=check_file_exists(ALBA_IMG_ISSUE_FILE),
         dag=dag,
         doc_md="""
         **ALBA Check Images File Watcher**
@@ -90,7 +90,7 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
     alba_check_xml = SSHOperator(
         task_id=f'alba_check_xml_{env}',
         ssh_conn_id=SSH_CONN_ID_2,
-        command=check_file(ALBA_XML_ISSUE_FILE),
+        command=check_file_exists(ALBA_XML_ISSUE_FILE),
         dag=dag,
         doc_md="""
         **ALBA Check XML File Watcher**
@@ -105,7 +105,7 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
     alba_check_noimages = SSHOperator(
         task_id=f'alba_check_noimages_{env}',
         ssh_conn_id=SSH_CONN_ID_2,
-        command=check_file(ALBA_NO_IMG_FILE),
+        command=check_file_exists(ALBA_NO_IMG_FILE),
         dag=dag,
         doc_md="""
         **ALBA Check No Images File Watcher**

@@ -9,20 +9,20 @@ Modules:
 
 Usage:
     # Import command generators and connection constants
-    from utils import check_file, SSHConnections
+    from utils import check_file_exists, SSHConnections
     
     # Use with SSHOperator
     SSHOperator(
-        task_id='check_file',
+        task_id='check_file_exists',
         ssh_conn_id=SSHConnections.TGEN_VL105,
-        command=check_file('/TEST/SHR/ALBA/work/ALBA_imgissue.par')
+        command=check_file_exists('/TEST/SHR/ALBA/work/ALBA_imgissue.par')
     )
 """
 
 # Export SSH command generators and utilities
 from .common_utils import (
     get_environment_from_path,
-    check_file,
+    check_file_exists,
     check_file_pattern,
     check_directory,
     get_file_size,
@@ -33,7 +33,7 @@ from .common_utils import (
 # Export only the new command generator functions
 __all__ = [
     'get_environment_from_path',
-    'check_file',
+    'check_file_exists',
     'check_file_pattern',
     'check_directory', 
     'get_file_size',
