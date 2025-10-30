@@ -35,7 +35,7 @@ dag = DAG(
     f'{app_name}_viennacodes_{env}',
     default_args=default_args,
     description=f'SLRE Vienna Codes Processing Pipeline - {ENV}',
-    schedule='*/5 * * * *',  # Check every 5 minutes for file
+    schedule='*/5 * * * *',
     catchup=False,
     max_active_runs=1,  # Prevent multiple concurrent runs
     tags=[env, app_name, 'dataproc', 'viennacodes', 'file-sensor'],
@@ -51,22 +51,19 @@ SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 # File sensor task - tfSLRE_start_VCD_sensor (using simple SSH command)
 tfSLRE_start_VCD_sensor = SSHOperator(
     task_id='tfSLRE_start_VCD_sensor',
-    ssh_conn_id=SSH_CONN_ID_1,
-    command=check_file_exists(SLRE_VCD_BUSY_FILE),
+    filepath=SLRE_VCD_BUSY_FILE,
+    fs_conn_id=SSH_CONN_ID_1,
+    poke_interval=30,  # Check every 30 seconds
+    timeout=240,  # 4 minute timeout (less than 5-minute schedule)
+    mode='poke',
     dag=dag,
-    email_on_failure=False,  # alarm_if_fail: 0
     doc_md=f"""
     **SLRE VCD Start File Sensor - {ENV}**
     
     **Purpose:**
-    - Monitors for VCD input files
-    - Triggers Vienna codes processing workflow when file exists
+    - Monitors for VCD input files every 5 minutes
+    - Processes files when found, skips when not found
     - File monitored: {SLRE_VCD_BUSY_FILE}
-    - Environment: {ENV}
-    
-    **Behavior:**
-    - Checks for file existence on each DAG run
-    - Automatically triggers tbSLRE_viennacodes when file is found
     """
 )
 

@@ -58,7 +58,6 @@ SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
 SSH_CONN_ID_2 = SSHConnections.TGEN_VL105  # File monitoring server
 
 # SLRE-specific file paths (dynamic based on environment)
-SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 SLRE_AUTOIDX_FILE = f"/{ENV}/SHR/SLRE/work/autoidx"
 SLRE_BATCHPROC_PATTERN = f"/{ENV}/SHR/SLRE/work/batchproc*"
 
