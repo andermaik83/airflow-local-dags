@@ -48,7 +48,7 @@ dag = DAG(
         "year": Param(type="string", description="Processing year (YYYY)", pattern="^\d{4}$"),
         "issue": Param(type="string", description="Month and day (NNYY)", pattern="^\d{4}$"),
         "pubdate": Param(type="string", description="Full date (YYYYMMDD)", pattern="^\d{8}$"),
-        "limit": Param(6000,type="integer", description="Limit for processing")
+        "limit": Param(6000, type="integer", description="Limit for processing")
     }
   
 )
