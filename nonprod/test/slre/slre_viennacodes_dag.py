@@ -43,7 +43,7 @@ dag = DAG(
 )
 
 # SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = "tgen-vl101"  # Linux processing server
+SSH_CONN_ID_1 = "tgen_vl101"  # Linux processing server
 SSH_CONN_ID_3 = "topr_vw103"  # Windows server for batch processing
 
 # SLRE VCD file path for monitoring
