@@ -31,7 +31,7 @@ from .common_utils import (
 )
 
 # Export only the new command generator functions
-__all__ = [,
+__all__ = [
     'check_file_exists',
     'check_file_pattern',
     'get_environment_from_path',
