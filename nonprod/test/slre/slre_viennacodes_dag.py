@@ -50,7 +50,7 @@ SSH_CONN_ID_3 = "topr_vw103"  # Windows server for batch processing
 SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 
 # File sensor task - tfSLRE_start_VCD_sensor (using simple SSH command)
-tfSLRE_start_VCD_sensor = SSHOperator(
+tfSLRE_start_VCD_sensor = FileSensor(
     task_id='tfSLRE_start_VCD_sensor',
     filepath=SLRE_VCD_BUSY_FILE,
     fs_conn_id=SSH_CONN_ID_1,
