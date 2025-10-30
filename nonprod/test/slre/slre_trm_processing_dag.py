@@ -5,6 +5,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.sensors.filesystem import FileSensor
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.models import Param
 import logging
 import os
 import sys
@@ -43,6 +44,13 @@ dag = DAG(
     schedule=None,  # Manual trigger or external dependency
     catchup=False,
     tags=[env, app_name, 'dataproc', 'trm', 'sensors'],
+    params={
+        "year": Param(type="string", description="Processing year (YYYY)", pattern="^\d{4}$"),
+        "issue": Param(type="string", description="Month and day (NNYY)", pattern="^\d{4}$"),
+        "pubdate": Param(type="string", description="Full date (YYYYMMDD)", pattern="^\d{8}$"),
+        "limit": Param(6000,type="integer", description="Limit for processing")
+    }
+  
 )
 
 # SSH Connection IDs (using shared constants)
@@ -58,7 +66,7 @@ SLRE_BATCHPROC_PATTERN = f"/{ENV}/SHR/SLRE/work/batchproc*"
 slre_preptrm = SSHOperator(
     task_id='tcSLRE_preptrm',
     ssh_conn_id=SSH_CONN_ID_1,
-    command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_preptrm.sh 2022 0913 20220913',
+    command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_preptrm.sh {{ params.year }} {{ params.issue }} {{ params.pubdate }}',
     dag=dag,
     email_on_failure=False,  # alarm_if_fail: 0
     doc_md="""
@@ -77,7 +85,7 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
     slre_cnvtrm = SSHOperator(
         task_id='tcSLRE_cnvtrm',
         ssh_conn_id=SSH_CONN_ID_1,
-        command=f'/{ENV}/LIB/SLRE/SLRE_cnvtrm/proc/SLRE_cnvtrm.sh 6000',
+        command=f'/{ENV}/LIB/SLRE/SLRE_cnvtrm/proc/SLRE_cnvtrm.sh {{params.limit}}',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -93,7 +101,7 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
     slre_mrgtrm = SSHOperator(
         task_id='tcSLRE_mrgtrm',
         ssh_conn_id=SSH_CONN_ID_1,
-        command=f'/{ENV}/LIB/SLRE/SLRE_mrgtrm/proc/SLRE_mrgtrm.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_mrgtrm/proc/SLRE_mrgtrm.sh ',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -109,7 +117,7 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
     slre_check_bpfiles = SSHOperator(
         task_id='tcSLRE_check_bpfiles',
         ssh_conn_id=SSH_CONN_ID_1,
-        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_checkbpfiles.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_checkbpfiles.sh ',
         dag=dag,
         email_on_failure=True,  # alarm_if_fail: 1
         doc_md="""
@@ -196,7 +204,7 @@ with TaskGroup(group_id='tbSLRE_trmpend', dag=dag) as trmpend_taskgroup:
     slre_mailtrmpend = SSHOperator(
         task_id='tcSLRE_mailtrmpend',
         ssh_conn_id=SSH_CONN_ID_1,
-        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mailpend.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mailpend.sh ',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
@@ -234,7 +242,7 @@ with TaskGroup(group_id='tbSLRE_trmbook', dag=dag) as trmbook_taskgroup:
     slre_mailtrmbook = SSHOperator(
         task_id='tcSLRE_mailtrmbook',
         ssh_conn_id=SSH_CONN_ID_1,
-        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mailbook.sh',
+        command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mailbook.sh ',
         dag=dag,
         email_on_failure=False,  # alarm_if_fail: 0
         doc_md="""
