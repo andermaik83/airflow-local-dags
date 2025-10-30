@@ -58,7 +58,7 @@ def check_file_exists(filepath: str) -> str:
             task_id='check_file_exists',
             ssh_conn_id='my_ssh_conn',
             command=check_file_exists('/path/to/file')
-        )check_file_exists
+        )
     """
     return f'test -f {filepath}'
 
@@ -165,3 +165,8 @@ class SSHConnections:
     TGEN_VL101 = 'tgen_vl101'  # Main Linux processing server
     TGEN_VL105 = 'tgen_vl105'  # File monitoring server
     TOPR_VW103 = 'topr_vw103'  # Windows batch processing server
+    
+def get_file_check_command():
+    """Add the missing function implementation"""
+    # Your implementation here
+    pass
