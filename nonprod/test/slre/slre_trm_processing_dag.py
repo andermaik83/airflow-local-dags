@@ -63,7 +63,7 @@ SLRE_BATCHPROC_PATTERN = f"/{ENV}/SHR/SLRE/work/batchproc*"
 
 # Preparation task for TRM processing
 slre_preptrm = SSHOperator(
-    task_id='tcSLRE_preptrm',
+    task_id='slre_preptrm',
     ssh_conn_id=SSH_CONN_ID_1,
     command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_preptrm.sh {{ params.year }} {{ params.issue }} {{ params.pubdate }}',
     dag=dag,
@@ -80,9 +80,9 @@ slre_preptrm = SSHOperator(
 # TaskGroup representing BOX tbSLRE_trm
 with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
     
-    # tcSLRE_cnvtrm - Convert TRM files
+    # slre_cnvtrm - Convert TRM files
     slre_cnvtrm = SSHOperator(
-        task_id='tcSLRE_cnvtrm',
+        task_id='slre_cnvtrm',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_cnvtrm/proc/SLRE_cnvtrm.sh {{params.limit}}',
         dag=dag,
@@ -96,9 +96,9 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
         """
     )
     
-    # tcSLRE_mrgtrm - Merge TRM files, depends on cnvtrm
+    # slre_mrgtrm - Merge TRM files, depends on cnvtrm
     slre_mrgtrm = SSHOperator(
-        task_id='tcSLRE_mrgtrm',
+        task_id='slre_mrgtrm',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_mrgtrm/proc/SLRE_mrgtrm.sh ',
         dag=dag,
@@ -112,9 +112,9 @@ with TaskGroup(group_id='tbSLRE_trm', dag=dag) as trm_taskgroup:
         """
     )
     
-    # tcSLRE_check_bpfiles - Check batch processing files, depends on mrgtrm
+    # slre_check_bpfiles - Check batch processing files, depends on mrgtrm
     slre_check_bpfiles = SSHOperator(
-        task_id='tcSLRE_check_bpfiles',
+        task_id='slre_check_bpfiles',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_checkbpfiles.sh ',
         dag=dag,
@@ -167,9 +167,9 @@ sensor_book_file = SSHOperator(
 # TaskGroup representing BOX tbSLRE_trmpend (triggered by pend sensor)
 with TaskGroup(group_id='tbSLRE_trmpend', dag=dag) as trmpend_taskgroup:
     
-    # tcSLRE_autoidxtrm - Auto index TRM
+    # slre_autoidxtrm - Auto index TRM
     slre_autoidxtrm = SSHOperator(
-        task_id='tcSLRE_autoidxtrm',
+        task_id='slre_autoidxtrm',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/TIPSi/TIPSi_indexing/proc/TIPSi_indexing.sh SLRE output_mrgtrm output_autoidx',
         dag=dag,
@@ -183,9 +183,9 @@ with TaskGroup(group_id='tbSLRE_trmpend', dag=dag) as trmpend_taskgroup:
         """
     )
     
-    # tcSLRE_move2bptrm_autoidx - Move to batch processing autoidx
+    # slre_move2bptrm_autoidx - Move to batch processing autoidx
     slre_move2bptrm_autoidx = SSHOperator(
-        task_id='tcSLRE_move2bptrm_autoidx',
+        task_id='slre_move2bptrm_autoidx',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bptrm.sh autoidx',
         dag=dag,
@@ -199,9 +199,9 @@ with TaskGroup(group_id='tbSLRE_trmpend', dag=dag) as trmpend_taskgroup:
         """
     )
     
-    # tcSLRE_mailtrmpend - Mail TRM pending notification
+    # slre_mailtrmpend - Mail TRM pending notification
     slre_mailtrmpend = SSHOperator(
-        task_id='tcSLRE_mailtrmpend',
+        task_id='slre_mailtrmpend',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mailpend.sh ',
         dag=dag,
@@ -221,9 +221,9 @@ with TaskGroup(group_id='tbSLRE_trmpend', dag=dag) as trmpend_taskgroup:
 # TaskGroup representing BOX tbSLRE_trmbook (triggered by book sensor)
 with TaskGroup(group_id='tbSLRE_trmbook', dag=dag) as trmbook_taskgroup:
     
-    # tcSLRE_move2bptrm_bp - Move to batch processing batchproc
+    # slre_move2bptrm_bp - Move to batch processing batchproc
     slre_move2bptrm_bp = SSHOperator(
-        task_id='tcSLRE_move2bptrm_bp',
+        task_id='slre_move2bptrm_bp',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bptrm.sh batchproc',
         dag=dag,
@@ -237,9 +237,9 @@ with TaskGroup(group_id='tbSLRE_trmbook', dag=dag) as trmbook_taskgroup:
         """
     )
     
-    # tcSLRE_mailtrmbook - Mail TRM book notification
+    # slre_mailtrmbook - Mail TRM book notification
     slre_mailtrmbook = SSHOperator(
-        task_id='tcSLRE_mailtrmbook',
+        task_id='slre_mailtrmbook',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mailbook.sh ',
         dag=dag,

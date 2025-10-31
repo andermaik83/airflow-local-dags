@@ -45,9 +45,9 @@ SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
 # TaskGroup representing BOX tbSLRE_images
 with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:
     
-    # tcSLRE_renimg - First task in the BOX
+    # slre_renimg - First task in the BOX
     slre_renimg = SSHOperator(
-        task_id='tcSLRE_renimg',
+        task_id='slre_renimg',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_renimg/proc/SLRE_renimg.sh ',
         dag=dag,
@@ -60,9 +60,9 @@ with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:
         """
     )
     
-    # tcSLRE_grpimgs - Groups images, depends on renimg
+    # slre_grpimgs - Groups images, depends on renimg
     slre_grpimgs = SSHOperator(
-        task_id='tcSLRE_grpimgs',
+        task_id='slre_grpimgs',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_grpimgs/proc/SLRE_startgrpimgs.sh ',
         dag=dag,
@@ -75,9 +75,9 @@ with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:
         """
     )
     
-    # tcSLRE_cnvimg - Convert images, depends on grpimgs
+    # slre_cnvimg - Convert images, depends on grpimgs
     slre_cnvimg = SSHOperator(
-        task_id='tcSLRE_cnvimg',
+        task_id='slre_cnvimg',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_cnvimg/proc/SLRE_cnvimg.sh ',
         dag=dag,
@@ -90,9 +90,9 @@ with TaskGroup(group_id='tbSLRE_images', dag=dag) as images_taskgroup:
         """
     )
     
-    # tcSLRE_ldimg - Load images, depends on cnvimg
+    # slre_ldimg - Load images, depends on cnvimg
     slre_ldimg = SSHOperator(
-        task_id='tcSLRE_ldimg',
+        task_id='slre_ldimg',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_cnvldimg/proc/SLRE_cnvldimg.sh ',
         dag=dag,

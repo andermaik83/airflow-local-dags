@@ -73,9 +73,9 @@ tfSLRE_start_VCD_sensor = SFTPSensor(
 # TaskGroup representing BOX tbSLRE_viennacodes
 with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
     
-    # tcSLRE_cnvviennacodexml - First task in the BOX
+    # slre_cnvviennacodexml - First task in the BOX
     slre_cnvviennacodexml = SSHOperator(
-        task_id='tcSLRE_cnvviennacodexml',
+        task_id='slre_cnvviennacodexml',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_cnvviennacodexml/proc/SLRE_cnvviennacodexml.sh ',
         dag=dag,
@@ -89,9 +89,9 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
         """
     )
     
-    # tcSLRE_mv2bpvc - Move to batch processing, depends on cnvviennacodexml
+    # slre_mv2bpvc - Move to batch processing, depends on cnvviennacodexml
     slre_mv2bpvc = SSHOperator(
-        task_id='tcSLRE_mv2bpvc',
+        task_id='slre_mv2bpvc',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bpvc.sh ',
         dag=dag,
@@ -105,9 +105,9 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
         """
     )
     
-    # tcSLRE_autobp_VC - Auto batch processing on Windows, depends on mv2bpvc
+    # slre_autobp_VC - Auto batch processing on Windows, depends on mv2bpvc
     slre_autobp_vc = SSHOperator(
-        task_id='tcSLRE_autobp_VC',
+        task_id='slre_autobp_VC',
         ssh_conn_id=SSH_CONN_ID_3,  # Windows server
         command='e:\\Local\\TIPSocr\\proc\\TIPSi_start_AutoBatchproc_VC.cmd SLRE',
         dag=dag,
@@ -121,9 +121,9 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
         """
     )
     
-    # tcSLRE_cleanup_vc - Cleanup Vienna codes, depends on autobp_VC
+    # slre_cleanup_vc - Cleanup Vienna codes, depends on autobp_VC
     slre_cleanup_vc = SSHOperator(
-        task_id='tcSLRE_cleanup_vc',
+        task_id='slre_cleanup_vc',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_cleanupvc.sh ',
         dag=dag,

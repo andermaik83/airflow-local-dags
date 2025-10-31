@@ -31,7 +31,7 @@ default_args = {
 }
 
 dag = DAG(
-    f'{app_name}_ingestion_dag_{env}',
+    f'{app_name}_ingestion_{env}',
     default_args=default_args,
     description='Download and prepare image data from Unumbio',
     schedule=None,  # Manual trigger or can be scheduled as needed
