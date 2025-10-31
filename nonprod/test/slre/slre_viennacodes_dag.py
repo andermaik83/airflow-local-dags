@@ -5,7 +5,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.sensors.filesystem import FileSensor
+from airflow.providers.standard.sensors.filesystem import FileSensor
 import logging
 import os
 import sys
@@ -50,6 +50,7 @@ SSH_CONN_ID_3 = "topr_vw103"  # Windows server for batch processing
 SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 
 # File sensor task - tfSLRE_start_VCD_sensor (using simple SSH command)
+logging.getLogger("airflow.providers.standard.sensors.filesystem").setLevel(logging.DEBUG)
 tfSLRE_start_VCD_sensor = FileSensor(
     task_id='tfSLRE_start_VCD_sensor',
     filepath=SLRE_VCD_BUSY_FILE,
