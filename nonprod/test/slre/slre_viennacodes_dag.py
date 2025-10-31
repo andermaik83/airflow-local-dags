@@ -5,7 +5,8 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.providers.standard.sensors.filesystem import FileSensor
+#from airflow.providers.standard.sensors.filesystem import FileSensor
+from airflow.providers.ssh.sensors.sftp import SFTPSensor
 import logging
 import os
 import sys
@@ -50,21 +51,21 @@ SSH_CONN_ID_3 = "topr_vw103"  # Windows server for batch processing
 SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 
 # File sensor task - tfSLRE_start_VCD_sensor (using simple SSH command)
-logging.getLogger("airflow.providers.standard.sensors.filesystem").setLevel(logging.DEBUG)
-tfSLRE_start_VCD_sensor = FileSensor(
+
+tfSLRE_start_VCD_sensor = SFTPSensor(
     task_id='tfSLRE_start_VCD_sensor',
-    filepath=SLRE_VCD_BUSY_FILE,
-    fs_conn_id=SSH_CONN_ID_1,
-    poke_interval=30,  # Check every 30 seconds
-    timeout=240,  # 4 minute timeout (less than 5-minute schedule)
+    path=SLRE_VCD_BUSY_FILE,
+    sftp_conn_id=SSH_CONN_ID_1,
+    poke_interval=30,
+    timeout=240,
     mode='poke',
     dag=dag,
     doc_md=f"""
     **SLRE VCD Start File Sensor - {ENV}**
     
     **Purpose:**
-    - Monitors for VCD input files every 5 minutes
-    - Processes files when found, skips when not found
+    - Monitors for VCD input files using SFTP
+    - Better for remote file monitoring than FileSensor
     - File monitored: {SLRE_VCD_BUSY_FILE}
     """
 )
