@@ -56,9 +56,9 @@ tfSLRE_start_VCD_sensor = SFTPSensor(
     task_id='tfSLRE_start_VCD_sensor',
     path=SLRE_VCD_BUSY_FILE,
     sftp_conn_id=SSH_CONN_ID_1,
-    poke_interval=30,
-    timeout=240,
-    mode='poke',
+    poke_interval=300,  # Check every 5 minutes
+    timeout=0,  # No timeout - wait indefinitely
+    mode='reschedule',  # Release worker between checks
     dag=dag,
     doc_md=f"""
     **SLRE VCD Start File Sensor - {ENV}**
