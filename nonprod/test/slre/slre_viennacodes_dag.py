@@ -6,7 +6,7 @@ from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 #from airflow.providers.standard.sensors.filesystem import FileSensor
-from airflow.providers.ssh.sensors.sftp import SFTPSensor
+from airflow.providers.sftp.sensors.sftp import SFTPSensor
 import logging
 import os
 import sys
