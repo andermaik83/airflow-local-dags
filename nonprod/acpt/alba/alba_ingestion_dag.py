@@ -44,7 +44,7 @@ SSH_CONN_ID = 'tgen_vl105'
 
 # Task 1: Download image data from Unumbio
 alba_download_imgdata = SSHOperator(
-    task_id=f'alba_download_imgdata_{env}',
+    task_id='alba_download_imgdata',
     ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_dld_img_data_from_unumbio.sh ',
     dag=dag,
@@ -61,7 +61,7 @@ alba_download_imgdata = SSHOperator(
 # Task 2: Prepare image data 
 # Condition: success of download task
 alba_prepare_imgdata = SSHOperator(
-    task_id=f'alba_prepare_imgdata_{env}',
+    task_id='alba_prepare_imgdata',
     ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_prepdataimg.sh ',
     dag=dag,
