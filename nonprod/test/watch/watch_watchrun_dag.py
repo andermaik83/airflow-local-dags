@@ -31,7 +31,7 @@ from utils.common_utils import get_environment_from_path
 # Environment and connection configuration
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
-env_p = env[0]
+env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
 
 # SSH Connection IDs
@@ -62,7 +62,7 @@ def get_common_tags(application, environment, additional_tags=None):
 
 # DAG Definition
 dag = DAG(
-    f'{app_name}_watchrun_{env}',
+    dag_id=f'{env_pre}d_{app_name}_watchrun',
     default_args=WATCH_DEFAULT_ARGS,
     description=f'TEST Watch WatchRun Comcplete Workflow - {ENV}',
     schedule=None,  # Triggered by main workflow via TriggerDagRunOperator
@@ -73,7 +73,7 @@ dag = DAG(
 
 # ====== ATRIUM MV COMFILE - INITIAL TRIGGER ======
 atrium_mvcomfile = SSHOperator(
-    task_id=f'{env_p}cATRIUM_MvComfile',
+    task_id=f'{env_pre}cATRIUM_MvComfile',
     ssh_conn_id=SSH_CONNECTIONS['LINUX_PRIMARY'],  # agen-vl101 -> tgen-vl101
     command=f'/{ENV}/LIB/ATRIUM/ATRIUM_mvfile/proc/ATRIUM_mvcomfile.sh ',
     dag=dag,
@@ -92,11 +92,11 @@ atrium_mvcomfile = SSHOperator(
 
 # ====== COMREC PROCESSING (tbCOMrec) ======
 # Original CA Box: tbCOMrec with condition: s(tcATRIUM_MvComfile)
-with TaskGroup(group_id='tbCOMrec_processing', dag=dag) as comrec_processing_group:
+with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     
     # tcCOMrec_BPenricher - Initial task in tbCOMrec box
     comrec_bpenricher = SSHOperator(
-        task_id=f'{env_p}cCOMrec_BPenricher',
+        task_id=f'{env_pre}cCOMrec_BPenricher',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/COMrec/COMrec_BPenricher/proc/COMrec_BPenricher.sh COMrec05 WW',
         dag=dag,
@@ -116,7 +116,7 @@ with TaskGroup(group_id='tbCOMrec_processing', dag=dag) as comrec_processing_gro
     
     # tcCOMrec_expand
     comrec_expand = SSHOperator(
-        task_id=f'{env_p}cCOMrec_expand',
+        task_id=f'{env_pre}cCOMrec_expand',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/COMrec/COMrec_expand/proc/COMrec_Expand.sh ',
         dag=dag,
@@ -133,7 +133,7 @@ with TaskGroup(group_id='tbCOMrec_processing', dag=dag) as comrec_processing_gro
     
     # tcCOMrec_Validate_XML
     comrec_validate_xml = SSHOperator(
-        task_id=f'{env_p}cCOMrec_Validate_XML',
+        task_id=f'{env_pre}cCOMrec_Validate_XML',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_Validate_XML.sh ',
         dag=dag,
@@ -150,7 +150,7 @@ with TaskGroup(group_id='tbCOMrec_processing', dag=dag) as comrec_processing_gro
     
     # tcCOMrec_DefComfileDB
     comrec_def_comfile_db = SSHOperator(
-        task_id=f'{env_p}cCOMrec_DefComfileDB',
+        task_id=f'{env_pre}cCOMrec_DefComfileDB',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_DefineComfileinDB.sh ',
         dag=dag,
@@ -167,7 +167,7 @@ with TaskGroup(group_id='tbCOMrec_processing', dag=dag) as comrec_processing_gro
     
     # tcCOMrec_Statnewtrm
     comrec_statnewtrm = SSHOperator(
-        task_id=f'{env_p}cCOMrec_Statnewtrm',
+        task_id=f'{env_pre}cCOMrec_Statnewtrm',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/COMrec/COMrec_newmarks/proc/COMrec_statnewtrm.sh ',
         dag=dag,
@@ -184,7 +184,7 @@ with TaskGroup(group_id='tbCOMrec_processing', dag=dag) as comrec_processing_gro
     
     # tcCOMrec_Mvcomfiles
     comrec_mvcomfiles = SSHOperator(
-        task_id=f'{env_p}cCOMrec_Mvcomfiles',
+        task_id=f'{env_pre}cCOMrec_Mvcomfiles',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_MvFiles.sh ',
         dag=dag,
@@ -206,11 +206,11 @@ with TaskGroup(group_id='tbCOMrec_processing', dag=dag) as comrec_processing_gro
 
 # ====== CTR LOADER PROCESSING (tbCTRldr_load) ======
 # Original Box: tbCTRldr_load with condition: s(tbCOMrec)
-with TaskGroup(group_id='tbCTRldr_load', dag=dag) as ctr_loader_group:
+with TaskGroup(group_id=f'{env_pre}bCTRldr_load', dag=dag) as ctr_loader_group:
     
     # tcNVScnt_offload_WTCH
     nvs_offload_wtch = SSHOperator(
-        task_id=f'{env_p}cNVScnt_offload_WTCH',
+        task_id=f'{env_pre}cNVScnt_offload_WTCH',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/NVScnt/NVScnt_offload/proc/NVScnt_SaegisOffload_CTRWTCH.sh WATCH I WW',
         dag=dag,
@@ -228,7 +228,7 @@ with TaskGroup(group_id='tbCTRldr_load', dag=dag) as ctr_loader_group:
     
     # tcCTRldr_XSLtransformer
     ctr_xsl_transformer = SSHOperator(
-        task_id=f'{env_p}cCTRldr_XSLtransformer',
+        task_id=f'{env_pre}cCTRldr_XSLtransformer',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/CTRldr/CTRldr_XSLtransformer/proc/CTRldr_XSLtransformer.sh WW',
         dag=dag,
@@ -246,7 +246,7 @@ with TaskGroup(group_id='tbCTRldr_load', dag=dag) as ctr_loader_group:
     
     # tcCTRldr_WTCH
     ctr_wtch = SSHOperator(
-        task_id=f'{env_p}cCTRldr_WTCH',
+        task_id=f'{env_pre}cCTRldr_WTCH',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/CTRldr/CTRldr_WTCH/proc/CTRldr_WTCH.sh WW',
         dag=dag,
@@ -268,7 +268,7 @@ with TaskGroup(group_id='tbCTRldr_load', dag=dag) as ctr_loader_group:
 # ====== ATRIUM QUALITY PROCESSING ======
 # Original condition: s(tbCOMrec)
 atrium_qlty_comrec = SSHOperator(
-    task_id=f'{env_p}cATRIUM_Qlty_COMrec',
+    task_id=f'{env_pre}cATRIUM_Qlty_COMrec',
     ssh_conn_id=SSH_CONNECTIONS['LINUX_PRIMARY'],  # tgen-vl101
     command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_cptoAtrium.sh -d 4',
     dag=dag,
@@ -288,7 +288,7 @@ atrium_qlty_comrec = SSHOperator(
 # ====== ATRIUM KE3 TOOL ======
 # Original condition: s(tbCOMrec)
 atrium_ke3tool = SSHOperator(
-    task_id=f'{env_p}cATRIUM_ke3tool',
+    task_id=f'{env_pre}cATRIUM_ke3tool',
     ssh_conn_id=SSH_CONNECTIONS['LINUX_PRIMARY'],  # tgen-vl101
     command=f'/{ENV}/LIB/ATRIUM/ATRIUM_ke3tool/proc/ATRIUM_ke3tool.sh WKERROR.DTA',
     dag=dag,
@@ -308,7 +308,7 @@ atrium_ke3tool = SSHOperator(
 # ====== WTCHWRD HIT COM FILE MONITORING ======
 # Original condition: s(tbCOMrec)
 wtchwrd_watchhitcomfile_trm = SSHOperator(
-    task_id=f'{env_p}cWTCHwrd_WatchHitComFile_TRM',
+    task_id=f'{env_pre}cWTCHwrd_WatchHitComFile_TRM',
     ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
     command=f'/{ENV}/LIB/WTCHwrd/WTCHwrd_hitcomfile/proc/WTCHwrd_WatchHitComfileTRM.sh TRM',
     dag=dag,
@@ -327,7 +327,7 @@ wtchwrd_watchhitcomfile_trm = SSHOperator(
 # ====== WTCHDEV STORE HITS ======
 # Original condition: s(tcWTCHwrd_WatchHitComFile_TRM)
 wtchdev_storehits = SSHOperator(
-    task_id=f'{env_p}cWTCHdev_StoreHits',
+    task_id=f'{env_pre}cWTCHdev_StoreHits',
     ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
     command=f'/{ENV}/LIB/WTCHdev/WTCHdev_procdailyresults/proc/WTCHdev_StoreHits.sh ',
     dag=dag,
@@ -347,11 +347,11 @@ wtchdev_storehits = SSHOperator(
 # Multiple regional processing boxes that depend on various conditions
 
 # tbWTCHwrd_SetOrdToP_UP_OG_Daily - Original condition: s(tcWTCHwrd_WatchHitComFile_TRM)
-with TaskGroup(group_id='tbWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as up_og_daily_group:
+with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as up_og_daily_group:
     
     # tcWTCHwrd_SetOrdToP_UP_Daily - condition: n(tcWTCHwrd_SetOrdToP_UP)
     wtchwrd_setord_up_daily = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_SetOrdToP_UP_Daily',
+        task_id=f'{env_pre}cWTCHwrd_SetOrdToP_UP_Daily',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd UP',
         dag=dag,
@@ -369,7 +369,7 @@ with TaskGroup(group_id='tbWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as up_og_dai
     
     # tcWTCHwrd_SetOrdToP_OG_Daily - condition: s(tcWTCHwrd_SetOrdToP_UP_Daily) & n(tcWTCHwrd_SetOrdToP_OG)
     wtchwrd_setord_og_daily = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_SetOrdToP_OG_Daily',
+        task_id=f'{env_pre}cWTCHwrd_SetOrdToP_OG_Daily',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OG',
         dag=dag,
@@ -388,11 +388,11 @@ with TaskGroup(group_id='tbWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as up_og_dai
     wtchwrd_setord_up_daily >> wtchwrd_setord_og_daily
 
 # tbWTCHwrd_AW - Original condition: s(tcWTCHwrd_WatchHitComFile_TRM)
-with TaskGroup(group_id='tbWTCHwrd_AW', dag=dag) as wtchwrd_aw_group:
+with TaskGroup(group_id=f'{env_pre}bWTCHwrd_AW', dag=dag) as wtchwrd_aw_group:
     
     # tcWTCHwrd_SetOrdToP_AW
     wtchwrd_setord_aw = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_SetOrdToP_AW',
+        task_id=f'{env_pre}cWTCHwrd_SetOrdToP_AW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd AW',
         dag=dag,
@@ -402,7 +402,7 @@ with TaskGroup(group_id='tbWTCHwrd_AW', dag=dag) as wtchwrd_aw_group:
     
     # tcWTCHwrd_ProductionRun_AWc
     wtchwrd_production_aw = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_ProductionRun_AWc',
+        task_id=f'{env_pre}cWTCHwrd_ProductionRun_AWc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd AWc',
         dag=dag,
@@ -413,11 +413,11 @@ with TaskGroup(group_id='tbWTCHwrd_AW', dag=dag) as wtchwrd_aw_group:
     wtchwrd_setord_aw >> wtchwrd_production_aw
 
 # tbWTCHdev - Original condition: s(tcWTCHdev_StoreHits)
-with TaskGroup(group_id='tbWTCHdev', dag=dag) as wtchdev_group:
+with TaskGroup(group_id=f'{env_pre}bWTCHdev', dag=dag) as wtchdev_group:
     
     # tcWTCHdev_SetOrdToP_DW
     wtchdev_setord_dw = WinRMOperator(
-        task_id=f'{env_p}cWTCHdev_SetOrdToP_DW',
+        task_id=f'{env_pre}cWTCHdev_SetOrdToP_DW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd DW',
         dag=dag,
@@ -427,7 +427,7 @@ with TaskGroup(group_id='tbWTCHdev', dag=dag) as wtchdev_group:
     
     # tcWTCHdev_ProductionRun_DW
     wtchdev_production_dw = WinRMOperator(
-        task_id=f'{env_p}cWTCHdev_ProductionRun_DW',
+        task_id=f'{env_pre}cWTCHdev_ProductionRun_DW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRun.cmd DWc',
         dag=dag,
@@ -437,7 +437,7 @@ with TaskGroup(group_id='tbWTCHdev', dag=dag) as wtchdev_group:
     
     # tcWTCHdev_PrepareDevTrm
     wtchdev_prepare_dev_trm = SSHOperator(
-        task_id=f'{env_p}cWTCHdev_PrepareDevTrm',
+        task_id=f'{env_pre}cWTCHdev_PrepareDevTrm',
         ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
         command=f'/{ENV}/LIB/WTCHdev/WTCHdev_prepdevtrm/proc/WTCHdev_PrepareDevTrm.sh ',
         dag=dag,
@@ -449,11 +449,11 @@ with TaskGroup(group_id='tbWTCHdev', dag=dag) as wtchdev_group:
     wtchdev_setord_dw >> wtchdev_production_dw >> wtchdev_prepare_dev_trm
 
 # tbWTCHwrd_WW - Original condition: s(tcWTCHdev_StoreHits)
-with TaskGroup(group_id='tbWTCHwrd_WW', dag=dag) as wtchwrd_ww_group:
+with TaskGroup(group_id=f'{env_pre}bWTCHwrd_WW', dag=dag) as wtchwrd_ww_group:
     
     # tcWTCHwrd_SetOrdToP_WW
     wtchwrd_setord_ww = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_SetOrdToP_WW',
+        task_id=f'{env_pre}cWTCHwrd_SetOrdToP_WW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd WW',
         dag=dag,
@@ -463,7 +463,7 @@ with TaskGroup(group_id='tbWTCHwrd_WW', dag=dag) as wtchwrd_ww_group:
     
     # tcWTCHwrd_ProductionRun_WWc
     wtchwrd_production_ww = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_ProductionRun_WWc',
+        task_id=f'{env_pre}cWTCHwrd_ProductionRun_WWc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd WWc',
         dag=dag,
@@ -474,11 +474,11 @@ with TaskGroup(group_id='tbWTCHwrd_WW', dag=dag) as wtchwrd_ww_group:
     wtchwrd_setord_ww >> wtchwrd_production_ww
 
 # tbWTCHwrd_TT - Original condition: s(tcWTCHdev_StoreHits)
-with TaskGroup(group_id='tbWTCHwrd_TT', dag=dag) as wtchwrd_tt_group:
+with TaskGroup(group_id=f'{env_pre}bWTCHwrd_TT', dag=dag) as wtchwrd_tt_group:
     
     # tcWTCHwrd_SetOrdToP_TT
     wtchwrd_setord_tt = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_SetOrdToP_TT',
+        task_id=f'{env_pre}cWTCHwrd_SetOrdToP_TT',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd TT',
         dag=dag,
@@ -488,7 +488,7 @@ with TaskGroup(group_id='tbWTCHwrd_TT', dag=dag) as wtchwrd_tt_group:
     
     # tcWTCHwrd_ProductionRun_TTc
     wtchwrd_production_tt = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_ProductionRun_TTc',
+        task_id=f'{env_pre}cWTCHwrd_ProductionRun_TTc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd TTc',
         dag=dag,
@@ -499,11 +499,11 @@ with TaskGroup(group_id='tbWTCHwrd_TT', dag=dag) as wtchwrd_tt_group:
     wtchwrd_setord_tt >> wtchwrd_production_tt
 
 # tbWTCHwrd_WWL - Original condition: s(tcWTCHdev_StoreHits)
-with TaskGroup(group_id='tbWTCHwrd_WWL', dag=dag) as wtchwrd_wwl_group:
+with TaskGroup(group_id=f'{env_pre}bWTCHwrd_WWL', dag=dag) as wtchwrd_wwl_group:
     
     # tcWTCHwrd_SetOrdToP_WWL
     wtchwrd_setord_wwl = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_SetOrdToP_WWL',
+        task_id=f'{env_pre}cWTCHwrd_SetOrdToP_WWL',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd WWLc',
         dag=dag,
@@ -513,7 +513,7 @@ with TaskGroup(group_id='tbWTCHwrd_WWL', dag=dag) as wtchwrd_wwl_group:
     
     # tcWTCHwrd_ProductionRun_WWLc
     wtchwrd_production_wwl = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_ProductionRun_WWLc',
+        task_id=f'{env_pre}cWTCHwrd_ProductionRun_WWLc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd WWLc',
         dag=dag,
@@ -524,11 +524,11 @@ with TaskGroup(group_id='tbWTCHwrd_WWL', dag=dag) as wtchwrd_wwl_group:
     wtchwrd_setord_wwl >> wtchwrd_production_wwl
 
 # tbWTCHwrd_SetOrd2P - Manual Watch Processing - Original condition: s(tbWTCHwrd_WW)
-with TaskGroup(group_id='tbWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manual_group:
+with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manual_group:
     
     # tcWTCHwrd_SetOrdToP_MAN
     wtchwrd_setord_man = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_SetOrdToP_MAN',
+        task_id=f'{env_pre}cWTCHwrd_SetOrdToP_MAN',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd MAN',
         dag=dag,
@@ -538,7 +538,7 @@ with TaskGroup(group_id='tbWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manual_group:
     
     # tcWTCHwrd_SetOrdToP_CN_MAN
     wtchwrd_setord_cn_man = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_SetOrdToP_CN_MAN',
+        task_id=f'{env_pre}cWTCHwrd_SetOrdToP_CN_MAN',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd CN',
         dag=dag,
@@ -548,7 +548,7 @@ with TaskGroup(group_id='tbWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manual_group:
     
     # tcWTCHwrd_SetOrdToP_ASSO
     wtchwrd_setord_asso = WinRMOperator(
-        task_id=f'{env_p}cWTCHwrd_SetOrdToP_ASSO',
+        task_id=f'{env_pre}cWTCHwrd_SetOrdToP_ASSO',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd ASSO',
         dag=dag,
@@ -563,11 +563,11 @@ with TaskGroup(group_id='tbWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manual_group:
 # Based on the complex dependency structure from the JIL file:
 
 # 0. Initial trigger - ATRIUM MvComfile starts the entire workflow
-atrium_mvcomfile >> comrec_processing_group
+atrium_mvcomfile >> comrec_group
 
 # 1. COMrec processing triggers multiple downstream processes
 # Original conditions: s(tbCOMrec)
-comrec_processing_group >> [atrium_qlty_comrec, atrium_ke3tool, wtchwrd_watchhitcomfile_trm, ctr_loader_group]
+comrec_group >> [atrium_qlty_comrec, atrium_ke3tool, wtchwrd_watchhitcomfile_trm, ctr_loader_group]
 
 # 2. WTCHwrd_WatchHitComFile_TRM triggers multiple regional processing
 wtchwrd_watchhitcomfile_trm >> [up_og_daily_group, wtchwrd_aw_group, wtchdev_storehits]

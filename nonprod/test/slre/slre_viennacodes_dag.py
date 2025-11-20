@@ -5,8 +5,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
-#from airflow.providers.standard.sensors.filesystem import FileSensor
-from airflow.providers.sftp.sensors.sftp import SFTPSensor
+from airflow.providers.standard.sensors.filesystem import FileSensor
 import logging
 import os
 import sys
@@ -20,6 +19,7 @@ from utils.common_utils import get_environment_from_path, check_file_exists
 # Get environment from current DAG path
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
+env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
 
 # DAG Definition
@@ -34,7 +34,7 @@ default_args = {
 }
 
 dag = DAG(
-    f'{app_name}_viennacodes_{env}',
+    f'{env_pre}d_{app_name}_viennacodes',
     default_args=default_args,
     description=f'SLRE Vienna Codes Processing Pipeline - {ENV}',
     schedule='*/5 * * * *',
@@ -51,31 +51,30 @@ SSH_CONN_ID_3 = "topr_vw103"  # Windows server for batch processing
 SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 
 # File sensor task - tfSLRE_start_VCD_sensor (using simple SSH command)
-
-tfSLRE_start_VCD_sensor = SFTPSensor(
-    task_id='tfSLRE_start_VCD_sensor',
-    path=SLRE_VCD_BUSY_FILE,
-    sftp_conn_id=SSH_CONN_ID_1,
-    poke_interval=150,  # Check every 2.5 minutes
-    timeout=60*60*24*365,  # 1 year timeout
-    mode='reschedule',  # Release worker between checks
+tfSLRE_start_VCD_sensor = FileSensor(
+    task_id=f'{env_pre}fSLRE_start_VCD_sensor',
+    filepath=SLRE_VCD_BUSY_FILE,
+    fs_conn_id=SSH_CONN_ID_1,
+    poke_interval=30,  # Check every 30 seconds
+    timeout=240,  # 4 minute timeout (less than 5-minute schedule)
+    mode='poke',
     dag=dag,
     doc_md=f"""
     **SLRE VCD Start File Sensor - {ENV}**
     
     **Purpose:**
-    - Monitors for VCD input files using SFTP
-    - Better for remote file monitoring than FileSensor
+    - Monitors for VCD input files every 5 minutes
+    - Processes files when found, skips when not found
     - File monitored: {SLRE_VCD_BUSY_FILE}
     """
 )
 
 # TaskGroup representing BOX tbSLRE_viennacodes
-with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
+with TaskGroup(group_id=f'{env_pre}bSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
     
-    # slre_cnvviennacodexml - First task in the BOX
+    # tcSLRE_cnvviennacodexml - First task in the BOX
     slre_cnvviennacodexml = SSHOperator(
-        task_id='slre_cnvviennacodexml',
+        task_id=f'{env_pre}cSLRE_cnvviennacodexml',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_cnvviennacodexml/proc/SLRE_cnvviennacodexml.sh ',
         dag=dag,
@@ -89,9 +88,9 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
         """
     )
     
-    # slre_mv2bpvc - Move to batch processing, depends on cnvviennacodexml
+    # tcSLRE_mv2bpvc - Move to batch processing, depends on cnvviennacodexml
     slre_mv2bpvc = SSHOperator(
-        task_id='slre_mv2bpvc',
+        task_id=f'{env_pre}cSLRE_mv2bpvc',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_mv2bpvc.sh ',
         dag=dag,
@@ -105,9 +104,9 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
         """
     )
     
-    # slre_autobp_VC - Auto batch processing on Windows, depends on mv2bpvc
+    # tcSLRE_autobp_VC - Auto batch processing on Windows, depends on mv2bpvc
     slre_autobp_vc = SSHOperator(
-        task_id='slre_autobp_VC',
+        task_id=f'{env_pre}cSLRE_autobp_VC',
         ssh_conn_id=SSH_CONN_ID_3,  # Windows server
         command='e:\\Local\\TIPSocr\\proc\\TIPSi_start_AutoBatchproc_VC.cmd SLRE',
         dag=dag,
@@ -121,9 +120,9 @@ with TaskGroup(group_id='tbSLRE_viennacodes', dag=dag) as viennacodes_taskgroup:
         """
     )
     
-    # slre_cleanup_vc - Cleanup Vienna codes, depends on autobp_VC
+    # tcSLRE_cleanup_vc - Cleanup Vienna codes, depends on autobp_VC
     slre_cleanup_vc = SSHOperator(
-        task_id='slre_cleanup_vc',
+        task_id=f'{env_pre}cSLRE_cleanup_vc',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/SLRE/SLRE_oper/proc/SLRE_cleanupvc.sh ',
         dag=dag,

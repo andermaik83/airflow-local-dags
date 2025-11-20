@@ -13,9 +13,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 # Import shared utilities
 from utils.common_utils import get_environment_from_path
 
-# Get environment from current DAG path
+
+# Environment and connection configuration
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
+env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
 
 
@@ -31,7 +33,7 @@ default_args = {
 }
 
 dag = DAG(
-    f'{app_name}_ingestion_{env}',
+    dag_id=f'{env_pre}d_{app_name}_ingestion',
     default_args=default_args,
     description='Download and prepare image data from Unumbio',
     schedule=None,  # Manual trigger or can be scheduled as needed
@@ -44,7 +46,7 @@ SSH_CONN_ID = 'tgen_vl105'
 
 # Task 1: Download image data from Unumbio
 alba_download_imgdata = SSHOperator(
-    task_id='alba_download_imgdata',
+    task_id=f'{env_pre}cALBA_download_imgdata',
     ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_dld_img_data_from_unumbio.sh ',
     dag=dag,
@@ -61,7 +63,7 @@ alba_download_imgdata = SSHOperator(
 # Task 2: Prepare image data 
 # Condition: success of download task
 alba_prepare_imgdata = SSHOperator(
-    task_id='alba_prepare_imgdata',
+    task_id=f'{env_pre}cALBA_prepare_imgdata',
     ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_prepdataimg.sh ',
     dag=dag,
