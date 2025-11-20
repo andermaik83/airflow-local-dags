@@ -17,6 +17,7 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 import os
 import sys
 
@@ -63,11 +64,11 @@ def get_common_tags(application, environment, additional_tags=None):
 dag = DAG(
     f'{app_name}_watchrun_{env}',
     default_args=WATCH_DEFAULT_ARGS,
-    description=f'TEST Watch WatchRun Complete Workflow - {ENV}',
+    description=f'TEST Watch WatchRun Comcplete Workflow - {ENV}',
     schedule=None,  # Triggered by main workflow via TriggerDagRunOperator
     catchup=False,
     max_active_runs=1,
-    tags=[env, app_name,'atrium']
+    tags=[env, app_name,'watchrun']
 )
 
 # ====== ATRIUM MV COMFILE - INITIAL TRIGGER ======
@@ -349,7 +350,7 @@ wtchdev_storehits = SSHOperator(
 with TaskGroup(group_id='tbWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as up_og_daily_group:
     
     # tcWTCHwrd_SetOrdToP_UP_Daily - condition: n(tcWTCHwrd_SetOrdToP_UP)
-    wtchwrd_setord_up_daily = SSHOperator(
+    wtchwrd_setord_up_daily = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_SetOrdToP_UP_Daily',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd UP',
@@ -367,7 +368,7 @@ with TaskGroup(group_id='tbWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as up_og_dai
     )
     
     # tcWTCHwrd_SetOrdToP_OG_Daily - condition: s(tcWTCHwrd_SetOrdToP_UP_Daily) & n(tcWTCHwrd_SetOrdToP_OG)
-    wtchwrd_setord_og_daily = SSHOperator(
+    wtchwrd_setord_og_daily = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_SetOrdToP_OG_Daily',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OG',
@@ -390,7 +391,7 @@ with TaskGroup(group_id='tbWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as up_og_dai
 with TaskGroup(group_id='tbWTCHwrd_AW', dag=dag) as wtchwrd_aw_group:
     
     # tcWTCHwrd_SetOrdToP_AW
-    wtchwrd_setord_aw = SSHOperator(
+    wtchwrd_setord_aw = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_SetOrdToP_AW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd AW',
@@ -400,7 +401,7 @@ with TaskGroup(group_id='tbWTCHwrd_AW', dag=dag) as wtchwrd_aw_group:
     )
     
     # tcWTCHwrd_ProductionRun_AWc
-    wtchwrd_production_aw = SSHOperator(
+    wtchwrd_production_aw = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_ProductionRun_AWc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd AWc',
@@ -408,14 +409,14 @@ with TaskGroup(group_id='tbWTCHwrd_AW', dag=dag) as wtchwrd_aw_group:
         email_on_failure=True,
         doc_md="""**WTCHwrd Production Run - AW Region**"""
     )
-    
+
     wtchwrd_setord_aw >> wtchwrd_production_aw
 
 # tbWTCHdev - Original condition: s(tcWTCHdev_StoreHits)
 with TaskGroup(group_id='tbWTCHdev', dag=dag) as wtchdev_group:
     
     # tcWTCHdev_SetOrdToP_DW
-    wtchdev_setord_dw = SSHOperator(
+    wtchdev_setord_dw = WinRMOperator(
         task_id=f'{env_p}cWTCHdev_SetOrdToP_DW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd DW',
@@ -425,7 +426,7 @@ with TaskGroup(group_id='tbWTCHdev', dag=dag) as wtchdev_group:
     )
     
     # tcWTCHdev_ProductionRun_DW
-    wtchdev_production_dw = SSHOperator(
+    wtchdev_production_dw = WinRMOperator(
         task_id=f'{env_p}cWTCHdev_ProductionRun_DW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRun.cmd DWc',
@@ -451,7 +452,7 @@ with TaskGroup(group_id='tbWTCHdev', dag=dag) as wtchdev_group:
 with TaskGroup(group_id='tbWTCHwrd_WW', dag=dag) as wtchwrd_ww_group:
     
     # tcWTCHwrd_SetOrdToP_WW
-    wtchwrd_setord_ww = SSHOperator(
+    wtchwrd_setord_ww = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_SetOrdToP_WW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd WW',
@@ -461,7 +462,7 @@ with TaskGroup(group_id='tbWTCHwrd_WW', dag=dag) as wtchwrd_ww_group:
     )
     
     # tcWTCHwrd_ProductionRun_WWc
-    wtchwrd_production_ww = SSHOperator(
+    wtchwrd_production_ww = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_ProductionRun_WWc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd WWc',
@@ -476,7 +477,7 @@ with TaskGroup(group_id='tbWTCHwrd_WW', dag=dag) as wtchwrd_ww_group:
 with TaskGroup(group_id='tbWTCHwrd_TT', dag=dag) as wtchwrd_tt_group:
     
     # tcWTCHwrd_SetOrdToP_TT
-    wtchwrd_setord_tt = SSHOperator(
+    wtchwrd_setord_tt = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_SetOrdToP_TT',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd TT',
@@ -486,7 +487,7 @@ with TaskGroup(group_id='tbWTCHwrd_TT', dag=dag) as wtchwrd_tt_group:
     )
     
     # tcWTCHwrd_ProductionRun_TTc
-    wtchwrd_production_tt = SSHOperator(
+    wtchwrd_production_tt = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_ProductionRun_TTc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd TTc',
@@ -501,7 +502,7 @@ with TaskGroup(group_id='tbWTCHwrd_TT', dag=dag) as wtchwrd_tt_group:
 with TaskGroup(group_id='tbWTCHwrd_WWL', dag=dag) as wtchwrd_wwl_group:
     
     # tcWTCHwrd_SetOrdToP_WWL
-    wtchwrd_setord_wwl = SSHOperator(
+    wtchwrd_setord_wwl = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_SetOrdToP_WWL',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd WWLc',
@@ -511,7 +512,7 @@ with TaskGroup(group_id='tbWTCHwrd_WWL', dag=dag) as wtchwrd_wwl_group:
     )
     
     # tcWTCHwrd_ProductionRun_WWLc
-    wtchwrd_production_wwl = SSHOperator(
+    wtchwrd_production_wwl = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_ProductionRun_WWLc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd WWLc',
@@ -526,7 +527,7 @@ with TaskGroup(group_id='tbWTCHwrd_WWL', dag=dag) as wtchwrd_wwl_group:
 with TaskGroup(group_id='tbWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manual_group:
     
     # tcWTCHwrd_SetOrdToP_MAN
-    wtchwrd_setord_man = SSHOperator(
+    wtchwrd_setord_man = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_SetOrdToP_MAN',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd MAN',
@@ -536,7 +537,7 @@ with TaskGroup(group_id='tbWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manual_group:
     )
     
     # tcWTCHwrd_SetOrdToP_CN_MAN
-    wtchwrd_setord_cn_man = SSHOperator(
+    wtchwrd_setord_cn_man = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_SetOrdToP_CN_MAN',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd CN',
@@ -546,7 +547,7 @@ with TaskGroup(group_id='tbWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manual_group:
     )
     
     # tcWTCHwrd_SetOrdToP_ASSO
-    wtchwrd_setord_asso = SSHOperator(
+    wtchwrd_setord_asso = WinRMOperator(
         task_id=f'{env_p}cWTCHwrd_SetOrdToP_ASSO',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd ASSO',
