@@ -115,14 +115,14 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_UP', dag=dag) as wtchwrd_up_group:
     wtchwrd_setord_up = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_UP',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
-        command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd UP',
+        command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd UP',
         dag=dag,
         doc_md="""**tcWTCHwrd_SetOrdToP_UP** Depends on tcWTCHwrd_WatchHitComFil_TRMUP."""
     )
     wtchwrd_prod_up = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_UPc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
-        command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd UPc',
+        command=f'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd UPc',
         dag=dag,
         doc_md="""**tcWTCHwrd_ProductionRun_UPc** Depends on tcWTCHwrd_SetOrdToP_UP."""
     )
@@ -133,14 +133,14 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_OW', dag=dag) as wtchwrd_ow_group:
     wtchwrd_setord_ow = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_OW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
-        command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OWc',
+        command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OWc',
         dag=dag,
         doc_md="""**tcWTCHwrd_SetOrdToP_OW** Depends on tcWTCHwrd_WatchHitComFil_TRMUP."""
     )
     wtchwrd_prod_ow = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_OW',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
-        command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd OWc',
+        command=f'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd OWc',
         dag=dag,
         doc_md="""**tcWTCHwrd_ProductionRun_OW** Depends on tcWTCHwrd_SetOrdToP_OW."""
     )
@@ -151,14 +151,14 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as 
     wtchwrd_setord_up_daily = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_UP_Daily',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
-        command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd UP',
+        command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd UP',
         dag=dag,
         doc_md="""**tcWTCHwrd_SetOrdToP_UP_Daily** Daily UP orders."""
     )
     wtchwrd_setord_og_daily = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_OG_Daily',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
-        command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OG',
+        command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OG',
         dag=dag,
         doc_md="""**tcWTCHwrd_SetOrdToP_OG_Daily** Daily OG orders (depends on UP Daily)."""
     )
@@ -219,4 +219,3 @@ comrec_usap_group >> [
 wtchwrd_watch_trmup >> [wtchwrd_up_group, wtchwrd_ow_group, daily_up_og_group]
 
 # Terminal tasks are the ends of each branch (no completion marker per request).
-"""
