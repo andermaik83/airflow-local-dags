@@ -216,6 +216,9 @@ comrec_usap_group >> [
 ]
 
 # WTCHwrd watch triggers boxes + daily group
-wtchwrd_watch_trmup >> [wtchwrd_up_group, wtchwrd_ow_group, daily_up_og_group]
+# WTCHwrd watch triggers UP and OW boxes only (daily group independent of watch trigger)
+wtchwrd_watch_trmup >> [wtchwrd_up_group, wtchwrd_ow_group]
+# Daily UP must also depend on regular SetOrdToP_UP completion per JIL predecessor semantics
+wtchwrd_setord_up >> wtchwrd_setord_up_daily
 
 # Terminal tasks are the ends of each branch (no completion marker per request).
