@@ -212,7 +212,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_CL', dag=dag) as wtchwrd_cl_group:
     wtchwrd_setord_cl = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_CL',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
-        command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd CLc',
+        command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd CLc',
         dag=dag,
         email_on_failure=True,
         doc_md="""
@@ -231,7 +231,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_CL', dag=dag) as wtchwrd_cl_group:
     wtchwrd_production_cl = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_CLc',
         ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
-        command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEvaTri.cmd CLc',
+        command=f'E:\local\OPSi\proc\WTCHwrd_ProductionRunEvaTri.cmd CLc',
         dag=dag,
         email_on_failure=True,
         doc_md="""
