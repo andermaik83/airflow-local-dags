@@ -58,10 +58,10 @@ dag = DAG(
     dag_id=f'{env_pre}d_{app_name}_usa_cl',
     default_args=WATCH_DEFAULT_ARGS,
     description=f'TEST Watch USA Common Law (CL) Complete Workflow - {ENV}',
-    schedule=None,  # File-triggered workflow
+    schedule='*/5 * * * *',  # runs every 5 minutes, but never overlaps
     catchup=False,
     max_active_runs=1,
-    tags=[env, app_name, 'cl-workflow', 'file-triggered', 'sequential'],
+    tags=[env, app_name, 'cl-workflow'],
 )
 
 # ====== COMREC CL PROCESSING (tbCOMrec_CL) ======
@@ -75,7 +75,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_CL', dag=dag) as comrec_cl_group:
         path=f'/{ENV}/SHR/COMrec/data/ke3/comCL',
         dag=dag,
         poke_interval=60,     # Check every 60 seconds
-        timeout=0,           # Never timeout - continuous monitoring
+        timeout=timedelta(days=365 * 10), # Effectively never times out (e.g., 10 years)
         mode='reschedule',   # Don't block workers - reschedule when no file
         doc_md="""
         **COMrec CL File Watcher**
@@ -86,12 +86,6 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_CL', dag=dag) as comrec_cl_group:
         - Watch path: /TEST/SHR/COMrec/data/ke3/comCL
         - Watch type: CREATE with SIZE change
         - Wait time: 60S no change
-        
-        **Cyclic Behavior:**
-        - Continuous file monitoring (timeout=0)
-        - File detection triggers processing workflow
-        - After workflow completion, cycles back to monitoring
-        - Prevents overlapping workflows (max_active_runs=1)
         
         **Trigger Conditions:**
         - File creation detected
@@ -260,13 +254,3 @@ nvs_offload_cl >> ctr_xsl_transformer_cl >> ctr_wtch_cl
 
 # 3. CTR completion triggers WTCHwrd CL processing
 ctr_wtch_cl >> wtchwrd_cl_group
-
-
-# 4. ====== CYCLIC PATTERN ======
-# Original CA Autosys: tbWTCHwrd_CL successor is tbCOMrec_CL (continuous cycle)
-# In Airflow: After workflow completion, cycle back to file monitoring for next file
-wtchwrd_cl_group >> comrec_cl_group
-
-# This creates the continuous cycle:
-# File Detection → Processing → Completion → Back to File Detection
-# Prevents overlapping workflows (max_active_runs=1) while enabling continuous processing
