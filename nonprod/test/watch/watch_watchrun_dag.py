@@ -71,7 +71,7 @@ dag = DAG(
 # ====== ATRIUM MV COMFILE - INITIAL TRIGGER ======
 atrium_mvcomfile = SSHOperator(
     task_id=f'{env_pre}cATRIUM_MvComfile',
-    ssh_conn_id=SSH_CONN_ID,  # agen-vl101 -> tgen-vl101
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ATRIUM/ATRIUM_mvfile/proc/ATRIUM_mvcomfile.sh ',
     dag=dag,
     email_on_failure=True,
@@ -266,7 +266,7 @@ with TaskGroup(group_id=f'{env_pre}bCTRldr_load', dag=dag) as ctr_loader_group:
 # Original condition: s(tbCOMrec)
 atrium_qlty_comrec = SSHOperator(
     task_id=f'{env_pre}cATRIUM_Qlty_COMrec',
-    ssh_conn_id=SSH_CONN_ID,  # tgen-vl101
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_cptoAtrium.sh -d 4',
     dag=dag,
     email_on_failure=True,
@@ -286,7 +286,7 @@ atrium_qlty_comrec = SSHOperator(
 # Original condition: s(tbCOMrec)
 atrium_ke3tool = SSHOperator(
     task_id=f'{env_pre}cATRIUM_ke3tool',
-    ssh_conn_id=SSH_CONN_ID,  # tgen-vl101
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ATRIUM/ATRIUM_ke3tool/proc/ATRIUM_ke3tool.sh WKERROR.DTA',
     dag=dag,
     email_on_failure=True,

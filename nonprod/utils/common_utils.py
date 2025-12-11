@@ -158,12 +158,6 @@ else
 fi
 '''.strip()
 
-    
-def get_file_check_command():
-    """Add the missing function implementation"""
-    # Your implementation here
-    pass
-
 # ================= Environment-aware Connection Resolver =================
 # Unified logical connection names -> environment-specific Airflow connection IDs
 _CONN_MAP: Dict[str, Dict[str, str]] = {
