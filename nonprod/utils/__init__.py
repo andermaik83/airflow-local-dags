@@ -27,7 +27,8 @@ from .common_utils import (
     check_directory,
     get_file_size,
     wait_for_stable_file,
-    resolve_connection_id
+    get_file_check_command,
+    resolve_connection_id    
 )
 
 # Export only the new command generator functions
@@ -38,5 +39,6 @@ __all__ = [
     'check_directory', 
     'get_file_size',
     'wait_for_stable_file',
+    'get_file_check_command',
     'resolve_connection_id'
 ]
