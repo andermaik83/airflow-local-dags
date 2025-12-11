@@ -27,11 +27,8 @@ env = ENV.lower()
 env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
 
-# SSH Connection
+# SSH Connection IDs
 SSH_CONN_ID_1 = resolve_connection_id(ENV, "opr_vl102")
-
-# SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
 SSH_CONN_ID_2 = resolve_connection_id(ENV, "opr_vl111")
 
 # SLRE-specific file paths (dynamic based on environment)

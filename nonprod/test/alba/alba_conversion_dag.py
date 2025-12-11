@@ -25,7 +25,7 @@ env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
 
 
-SSH_CONN_ID_2 = resolve_connection_id(ENV,"opr_vl103")
+SSH_CONN_ID = resolve_connection_id(ENV,"opr_vl103")
 
 # File paths for monitoring
 ALBA_IMG_ISSUE_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_imgissue.par"
@@ -55,7 +55,7 @@ dag = DAG(
 # Task 1: Check issues (prerequisite for file watchers)
 alba_checkissue = SSHOperator(
     task_id=f'{env_pre}cALBA_checkissue',
-    ssh_conn_id=SSH_CONN_ID_2,
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_chkissues.sh ',
     dag=dag,
     doc_md="""
@@ -73,7 +73,7 @@ with TaskGroup(f'{env_pre}bALBA_file_watchers', dag=dag) as file_watchers_group:
     # File watcher for images issue - using simple SSH command
     alba_check_images = SSHOperator(
         task_id=f'{env_pre}fALBA_check_images',
-        ssh_conn_id=SSH_CONN_ID_2,
+        ssh_conn_id=SSH_CONN_ID,
         command=check_file_exists(ALBA_IMG_ISSUE_FILE),
         dag=dag,
         doc_md="""
@@ -88,7 +88,7 @@ with TaskGroup(f'{env_pre}bALBA_file_watchers', dag=dag) as file_watchers_group:
     # File watcher for XML issue - using simple SSH command
     alba_check_xml = SSHOperator(
         task_id=f'{env_pre}fALBA_check_xml',
-        ssh_conn_id=SSH_CONN_ID_2,
+        ssh_conn_id=SSH_CONN_ID,
         command=check_file_exists(ALBA_XML_ISSUE_FILE),
         dag=dag,
         doc_md="""
@@ -103,7 +103,7 @@ with TaskGroup(f'{env_pre}bALBA_file_watchers', dag=dag) as file_watchers_group:
     # File watcher for no images - using simple SSH command
     alba_check_noimages = SSHOperator(
         task_id=f'{env_pre}fALBA_check_noimages',
-        ssh_conn_id=SSH_CONN_ID_2,
+        ssh_conn_id=SSH_CONN_ID,
         command=check_file_exists(ALBA_NO_IMG_FILE),
         dag=dag,
         doc_md="""
@@ -192,7 +192,7 @@ with TaskGroup(f'{env_pre}bALBA_images', dag=dag) as image_processing_group:
     # Final step: Mail images summary
     alba_mail_images = SSHOperator(
         task_id=f'{env_pre}cALBA_mail_images',
-        ssh_conn_id=SSH_CONN_ID_2,
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_mail_images.sh ',
         dag=dag,
         doc_md="""
@@ -206,7 +206,7 @@ with TaskGroup(f'{env_pre}bALBA_images', dag=dag) as image_processing_group:
 # XML Processing Task (depends on both XML and no-images file watchers)
 alba_mv_xml = SSHOperator(
     task_id=f'{env_pre}cALBA_mv_xml',
-    ssh_conn_id=SSH_CONN_ID_2,
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_mv_XML2IArcanum.sh ',
     doc_md="""
     **ALBA Move XML Task**
