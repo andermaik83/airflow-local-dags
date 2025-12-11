@@ -15,7 +15,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 from utils.common_utils import (
     get_environment_from_path, 
     check_file_exists,
-    resolve_connection_id
+    SSHConnections
 )
 
 # Environment and connection configuration
@@ -23,14 +23,6 @@ ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
-
-
-SSH_CONN_ID_2 = resolve_connection_id(ENV,"opr_vl103")
-
-# File paths for monitoring
-ALBA_IMG_ISSUE_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_imgissue.par"
-ALBA_XML_ISSUE_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_xmlissue.par"
-ALBA_NO_IMG_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_noimgtoprocess"
 
 # DAG Definition
 default_args = {
@@ -51,6 +43,16 @@ dag = DAG(
     catchup=False,
     tags=[env, app_name,'dataproc','conversion'],
 )
+
+# SSH Connection IDs (using constants from shared utilities)
+SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # For tgen-vl101 server
+SSH_CONN_ID_2 = SSHConnections.TGEN_VL105  # For tgen-vl105 server
+
+# File paths for monitoring
+ALBA_IMG_ISSUE_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_imgissue.par"
+ALBA_XML_ISSUE_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_xmlissue.par"
+ALBA_NO_IMG_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_noimgtoprocess"
+
 
 # Task 1: Check issues (prerequisite for file watchers)
 alba_checkissue = SSHOperator(

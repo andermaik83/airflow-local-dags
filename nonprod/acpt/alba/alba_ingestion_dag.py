@@ -11,7 +11,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path, resolve_connection_id
+from utils.common_utils import get_environment_from_path
 
 
 # Environment and connection configuration
@@ -20,8 +20,6 @@ env = ENV.lower()
 env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
 
-# SSH Connection ID
-SSH_CONN_ID = resolve_connection_id(ENV,"opr_vl111")
 
 # DAG Definition
 default_args = {
@@ -43,6 +41,8 @@ dag = DAG(
     tags=[env, app_name,'dataproc','ingestion','unumbio'],
 )
 
+# SSH Connection ID for tgen-vl105 server
+SSH_CONN_ID = 'tgen_vl105'
 
 # Task 1: Download image data from Unumbio
 alba_download_imgdata = SSHOperator(

@@ -9,13 +9,16 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'shared'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 # Environment and connection configuration
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
+
+# SSH Connection IDs (using connection resolver)
+SSH_CONN_ID = resolve_connection_id(ENV,"opr_vl101")
 
 default_args = {
     'owner': 'airflow',
@@ -34,7 +37,7 @@ with DAG(
     # Task 1: roma_preptrm
     roma_preptrm = SSHOperator(
         task_id=f'{env_pre}cROMA_preptrm',
-        ssh_conn_id='RAXTestuser',
+        ssh_conn_id=SSH_CONN_ID,
         command='/TEST/LIB/ROMA/ROMA_oper/proc/ROMA_preptrm.sh {{ params.date | default("20251006") }}',
         get_pty=True,
     )
@@ -42,7 +45,7 @@ with DAG(
     # Task 2: roma_cnvtrm
     roma_cnvtrm = SSHOperator(
         task_id=f'{env_pre}cROMA_cnvtrm',
-        ssh_conn_id='RAXTestuser',
+        ssh_conn_id=SSH_CONN_ID,
         command='/TEST/LIB/ROMA/ROMA_cnvtrm/proc/ROMA_cnvtrm.sh 5000',
         get_pty=True,
     )
@@ -50,7 +53,7 @@ with DAG(
     # Task 3: roma_mv2bptrm
     roma_mv2bptrm = SSHOperator(
         task_id=f'{env_pre}cROMA_mv2bptrm',
-        ssh_conn_id='RAXTestuser',
+        ssh_conn_id=SSH_CONN_ID,
         command='/TEST/LIB/ROMA/ROMA_oper/proc/ROMA_mv2bptrm.sh ',
         get_pty=True,
     )

@@ -14,13 +14,20 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path, check_file_exists
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 # Get environment from current DAG path
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
+
+# SSH Connection IDs (using shared constants)
+SSH_CONN_ID_1 = resolve_connection_id(ENV, "opr_vl101")
+SSH_CONN_ID_2 = resolve_connection_id(ENV, "opr_vw105")
+
+# SLRE VCD file path for monitoring
+SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 
 # DAG Definition
 default_args = {
@@ -42,13 +49,6 @@ dag = DAG(
     max_active_runs=1,  # Prevent multiple concurrent runs
     tags=[env, app_name, 'dataproc', 'viennacodes', 'file-sensor'],
 )
-
-# SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = "tgen_vl101"  # Linux processing server
-SSH_CONN_ID_3 = "topr_vw103"  # Windows server for batch processing
-
-# SLRE VCD file path for monitoring
-SLRE_VCD_BUSY_FILE = f"/{ENV}/SHR/SLRE/work/SLRE_VCD.busy"
 
 # File sensor task - tfSLRE_start_VCD_sensor (using simple SSH command)
 tfSLRE_start_VCD_sensor = FileSensor(
@@ -107,7 +107,7 @@ with TaskGroup(group_id=f'{env_pre}bSLRE_viennacodes', dag=dag) as viennacodes_t
     # tcSLRE_autobp_VC - Auto batch processing on Windows, depends on mv2bpvc
     slre_autobp_vc = SSHOperator(
         task_id=f'{env_pre}cSLRE_autobp_VC',
-        ssh_conn_id=SSH_CONN_ID_3,  # Windows server
+        ssh_conn_id=SSH_CONN_ID_2,  # Windows server
         command='e:\\Local\\TIPSocr\\proc\\TIPSi_start_AutoBatchproc_VC.cmd SLRE',
         dag=dag,
         email_on_failure=True,  # alarm_if_fail: 1

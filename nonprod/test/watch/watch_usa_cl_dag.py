@@ -25,7 +25,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'shared'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 # Environment and connection configuration
 ENV = get_environment_from_path(__file__)
@@ -33,12 +33,9 @@ env = ENV.lower()
 app_name = 'watch'
 env_pre = env[0]  # 't' for test, 'a' for acpt, 'p' for prod
 
-# SSH Connection IDs - Environment aware
-SSH_CONNECTIONS = {
-    'LINUX_PRIMARY': 'tgen_vl101',    # tgen-vl101
-    'LINUX_MONITOR': 'tgen_vl105',    # tgen-vl105  
-    'WINDOWS_PRIMARY': 'topr_vw103',  # topr-vw103
-}
+# SSH Connection IDs 
+SSH_CONN_ID = resolve_connection_id(ENV, "opr_vl113")
+WINRM_CONN_ID = resolve_connection_id(ENV, "opr_vw104")
 
 # Default arguments
 WATCH_DEFAULT_ARGS = {
@@ -71,7 +68,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_CL', dag=dag) as comrec_cl_group:
     # tfCOMrec_CL - File watcher inside tbCOMrec_CL box (continuous monitoring)
     cl_com_file_sensor = SFTPSensor(
         task_id=f'{env_pre}fCOMrec_CL',
-        sftp_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        sftp_conn_id=SSH_CONN_ID,
         path=f'/{ENV}/SHR/COMrec/data/ke3/comCL',
         dag=dag,
         poke_interval=60,     # Check every 60 seconds
@@ -96,7 +93,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_CL', dag=dag) as comrec_cl_group:
     # tcCOMrec_CL - Main COMrec processing task for CL region
     comrec_cl = SSHOperator(
         task_id=f'{env_pre}cCOMrec_CL',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_CL/proc/COMrec_CL.sh',  # Assumed command path based on pattern
         dag=dag,
         email_on_failure=True,
@@ -124,7 +121,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_CL', dag=dag) as comrec_cl_group:
 # Original condition: s(tbCOMrec_CL)
 nvs_offload_cl = SSHOperator(
     task_id=f'{env_pre}cNVScnt_offload_WTCH_CL',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/NVScnt/NVScnt_offload/proc/NVScnt_SaegisOffload_CTRWTCH_US.sh WATCH CL I',
     dag=dag,
     email_on_failure=True,
@@ -144,7 +141,7 @@ nvs_offload_cl = SSHOperator(
 # Original condition: s(tcNVScnt_offload_WTCH_CL)
 ctr_xsl_transformer_cl = SSHOperator(
     task_id=f'{env_pre}cCTRldr_XSLtransformer_CL',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/CTRldr/CTRldr_XSLtransformer/proc/CTRldr_XSLtransformer.sh CL',
     dag=dag,
     email_on_failure=True,
@@ -164,7 +161,7 @@ ctr_xsl_transformer_cl = SSHOperator(
 # Original condition: s(tcCTRldr_XSLtransformer_CL)
 ctr_wtch_cl = SSHOperator(
     task_id=f'{env_pre}cCTRldr_WTCH_CL',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/CTRldr/CTRldr_WTCH/proc/CTRldr_WTCH.sh CL',
     dag=dag,
     email_on_failure=True,
@@ -187,7 +184,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_CL', dag=dag) as wtchwrd_cl_group:
     # tcWTCHwrd_WatchHitComFil_TRMCL
     wtchwrd_watch_hit_comfil_trmcl = SSHOperator(
         task_id=f'{env_pre}cWTCHwrd_WatchHitComFil_TRMCL',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/WTCHwrd/WTCHwrd_hitcomfile/proc/WTCHwrd_WatchHitComfileTRM_TT.sh TRMCL CL',
         dag=dag,
         email_on_failure=True,
@@ -205,7 +202,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_CL', dag=dag) as wtchwrd_cl_group:
     # tcWTCHwrd_SetOrdToP_CL
     wtchwrd_setord_cl = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_CL',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd CLc',
         dag=dag,
         email_on_failure=True,
@@ -224,7 +221,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_CL', dag=dag) as wtchwrd_cl_group:
     # tcWTCHwrd_ProductionRun_CLc
     wtchwrd_production_cl = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_CLc',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_ProductionRunEvaTri.cmd CLc',
         dag=dag,
         email_on_failure=True,

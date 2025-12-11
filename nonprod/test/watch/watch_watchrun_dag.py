@@ -34,12 +34,9 @@ env = ENV.lower()
 env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
 
-# SSH Connection IDs
-SSH_CONNECTIONS = {
-    'LINUX_PRIMARY': 'tgen_vl101',    # tgen-vl101
-    'LINUX_MONITOR': 'tgen_vl105',    # tgen-vl105  
-    'WINDOWS_PRIMARY': 'topr_vw103',  # topr-vw103
-}
+# SSH Connection IDs 
+SSH_CONN_ID = resolve_connection_id(ENV, "opr_vl113")
+WINRM_CONN_ID = resolve_connection_id(ENV, "opr_vw104")
 
 # Default arguments
 WATCH_DEFAULT_ARGS = {
@@ -74,7 +71,7 @@ dag = DAG(
 # ====== ATRIUM MV COMFILE - INITIAL TRIGGER ======
 atrium_mvcomfile = SSHOperator(
     task_id=f'{env_pre}cATRIUM_MvComfile',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_PRIMARY'],  # agen-vl101 -> tgen-vl101
+    ssh_conn_id=SSH_CONN_ID,  # agen-vl101 -> tgen-vl101
     command=f'/{ENV}/LIB/ATRIUM/ATRIUM_mvfile/proc/ATRIUM_mvcomfile.sh ',
     dag=dag,
     email_on_failure=True,
@@ -97,7 +94,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     # tcCOMrec_BPenricher - Initial task in tbCOMrec box
     comrec_bpenricher = SSHOperator(
         task_id=f'{env_pre}cCOMrec_BPenricher',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_BPenricher/proc/COMrec_BPenricher.sh COMrec05 WW',
         dag=dag,
         email_on_failure=True,
@@ -117,7 +114,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     # tcCOMrec_expand
     comrec_expand = SSHOperator(
         task_id=f'{env_pre}cCOMrec_expand',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_expand/proc/COMrec_Expand.sh ',
         dag=dag,
         email_on_failure=True,
@@ -134,7 +131,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     # tcCOMrec_Validate_XML
     comrec_validate_xml = SSHOperator(
         task_id=f'{env_pre}cCOMrec_Validate_XML',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_Validate_XML.sh ',
         dag=dag,
         email_on_failure=True,
@@ -151,7 +148,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     # tcCOMrec_DefComfileDB
     comrec_def_comfile_db = SSHOperator(
         task_id=f'{env_pre}cCOMrec_DefComfileDB',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_DefineComfileinDB.sh ',
         dag=dag,
         email_on_failure=True,
@@ -168,7 +165,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     # tcCOMrec_Statnewtrm
     comrec_statnewtrm = SSHOperator(
         task_id=f'{env_pre}cCOMrec_Statnewtrm',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_newmarks/proc/COMrec_statnewtrm.sh ',
         dag=dag,
         email_on_failure=True,
@@ -185,7 +182,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     # tcCOMrec_Mvcomfiles
     comrec_mvcomfiles = SSHOperator(
         task_id=f'{env_pre}cCOMrec_Mvcomfiles',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_MvFiles.sh ',
         dag=dag,
         email_on_failure=True,
@@ -211,7 +208,7 @@ with TaskGroup(group_id=f'{env_pre}bCTRldr_load', dag=dag) as ctr_loader_group:
     # tcNVScnt_offload_WTCH
     nvs_offload_wtch = SSHOperator(
         task_id=f'{env_pre}cNVScnt_offload_WTCH',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/NVScnt/NVScnt_offload/proc/NVScnt_SaegisOffload_CTRWTCH.sh WATCH I WW',
         dag=dag,
         email_on_failure=True,
@@ -229,7 +226,7 @@ with TaskGroup(group_id=f'{env_pre}bCTRldr_load', dag=dag) as ctr_loader_group:
     # tcCTRldr_XSLtransformer
     ctr_xsl_transformer = SSHOperator(
         task_id=f'{env_pre}cCTRldr_XSLtransformer',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/CTRldr/CTRldr_XSLtransformer/proc/CTRldr_XSLtransformer.sh WW',
         dag=dag,
         email_on_failure=True,
@@ -247,7 +244,7 @@ with TaskGroup(group_id=f'{env_pre}bCTRldr_load', dag=dag) as ctr_loader_group:
     # tcCTRldr_WTCH
     ctr_wtch = SSHOperator(
         task_id=f'{env_pre}cCTRldr_WTCH',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/CTRldr/CTRldr_WTCH/proc/CTRldr_WTCH.sh WW',
         dag=dag,
         email_on_failure=True,
@@ -269,7 +266,7 @@ with TaskGroup(group_id=f'{env_pre}bCTRldr_load', dag=dag) as ctr_loader_group:
 # Original condition: s(tbCOMrec)
 atrium_qlty_comrec = SSHOperator(
     task_id=f'{env_pre}cATRIUM_Qlty_COMrec',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_PRIMARY'],  # tgen-vl101
+    ssh_conn_id=SSH_CONN_ID,  # tgen-vl101
     command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_cptoAtrium.sh -d 4',
     dag=dag,
     email_on_failure=True,
@@ -289,7 +286,7 @@ atrium_qlty_comrec = SSHOperator(
 # Original condition: s(tbCOMrec)
 atrium_ke3tool = SSHOperator(
     task_id=f'{env_pre}cATRIUM_ke3tool',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_PRIMARY'],  # tgen-vl101
+    ssh_conn_id=SSH_CONN_ID,  # tgen-vl101
     command=f'/{ENV}/LIB/ATRIUM/ATRIUM_ke3tool/proc/ATRIUM_ke3tool.sh WKERROR.DTA',
     dag=dag,
     email_on_failure=True,
@@ -309,7 +306,7 @@ atrium_ke3tool = SSHOperator(
 # Original condition: s(tbCOMrec)
 wtchwrd_watchhitcomfile_trm = SSHOperator(
     task_id=f'{env_pre}cWTCHwrd_WatchHitComFile_TRM',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/WTCHwrd/WTCHwrd_hitcomfile/proc/WTCHwrd_WatchHitComfileTRM.sh TRM',
     dag=dag,
     email_on_failure=True,
@@ -328,7 +325,7 @@ wtchwrd_watchhitcomfile_trm = SSHOperator(
 # Original condition: s(tcWTCHwrd_WatchHitComFile_TRM)
 wtchdev_storehits = SSHOperator(
     task_id=f'{env_pre}cWTCHdev_StoreHits',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/WTCHdev/WTCHdev_procdailyresults/proc/WTCHdev_StoreHits.sh ',
     dag=dag,
     email_on_failure=True,
@@ -352,7 +349,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as 
     # tcWTCHwrd_SetOrdToP_UP_Daily - condition: n(tcWTCHwrd_SetOrdToP_UP)
     wtchwrd_setord_up_daily = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_UP_Daily',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd UP',
         dag=dag,
         email_on_failure=True,
@@ -370,7 +367,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as 
     # tcWTCHwrd_SetOrdToP_OG_Daily - condition: s(tcWTCHwrd_SetOrdToP_UP_Daily) & n(tcWTCHwrd_SetOrdToP_OG)
     wtchwrd_setord_og_daily = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_OG_Daily',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OG',
         dag=dag,
         email_on_failure=True,
@@ -393,7 +390,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_AW', dag=dag) as wtchwrd_aw_group:
     # tcWTCHwrd_SetOrdToP_AW
     wtchwrd_setord_aw = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_AW',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd AW',
         dag=dag,
         email_on_failure=True,
@@ -403,7 +400,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_AW', dag=dag) as wtchwrd_aw_group:
     # tcWTCHwrd_ProductionRun_AWc
     wtchwrd_production_aw = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_AWc',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd AWc',
         dag=dag,
         email_on_failure=True,
@@ -418,7 +415,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHdev', dag=dag) as wtchdev_group:
     # tcWTCHdev_SetOrdToP_DW
     wtchdev_setord_dw = WinRMOperator(
         task_id=f'{env_pre}cWTCHdev_SetOrdToP_DW',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd DW',
         dag=dag,
         email_on_failure=True,
@@ -428,7 +425,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHdev', dag=dag) as wtchdev_group:
     # tcWTCHdev_ProductionRun_DW
     wtchdev_production_dw = WinRMOperator(
         task_id=f'{env_pre}cWTCHdev_ProductionRun_DW',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRun.cmd DWc',
         dag=dag,
         email_on_failure=True,
@@ -438,7 +435,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHdev', dag=dag) as wtchdev_group:
     # tcWTCHdev_PrepareDevTrm
     wtchdev_prepare_dev_trm = SSHOperator(
         task_id=f'{env_pre}cWTCHdev_PrepareDevTrm',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],  # tgen-vl105
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/WTCHdev/WTCHdev_prepdevtrm/proc/WTCHdev_PrepareDevTrm.sh ',
         dag=dag,
         email_on_failure=True,
@@ -454,7 +451,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_WW', dag=dag) as wtchwrd_ww_group:
     # tcWTCHwrd_SetOrdToP_WW
     wtchwrd_setord_ww = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_WW',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd WW',
         dag=dag,
         email_on_failure=True,
@@ -464,7 +461,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_WW', dag=dag) as wtchwrd_ww_group:
     # tcWTCHwrd_ProductionRun_WWc
     wtchwrd_production_ww = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_WWc',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd WWc',
         dag=dag,
         email_on_failure=True,
@@ -479,7 +476,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_TT', dag=dag) as wtchwrd_tt_group:
     # tcWTCHwrd_SetOrdToP_TT
     wtchwrd_setord_tt = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_TT',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd TT',
         dag=dag,
         email_on_failure=True,
@@ -489,7 +486,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_TT', dag=dag) as wtchwrd_tt_group:
     # tcWTCHwrd_ProductionRun_TTc
     wtchwrd_production_tt = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_TTc',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd TTc',
         dag=dag,
         email_on_failure=True,
@@ -504,7 +501,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_WWL', dag=dag) as wtchwrd_wwl_group:
     # tcWTCHwrd_SetOrdToP_WWL
     wtchwrd_setord_wwl = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_WWL',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd WWLc',
         dag=dag,
         email_on_failure=True,
@@ -514,7 +511,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_WWL', dag=dag) as wtchwrd_wwl_group:
     # tcWTCHwrd_ProductionRun_WWLc
     wtchwrd_production_wwl = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_WWLc',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd WWLc',
         dag=dag,
         email_on_failure=True,
@@ -529,7 +526,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manua
     # tcWTCHwrd_SetOrdToP_MAN
     wtchwrd_setord_man = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_MAN',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd MAN',
         dag=dag,
         email_on_failure=True,
@@ -539,7 +536,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manua
     # tcWTCHwrd_SetOrdToP_CN_MAN
     wtchwrd_setord_cn_man = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_CN_MAN',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd CN',
         dag=dag,
         email_on_failure=True,
@@ -549,7 +546,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manua
     # tcWTCHwrd_SetOrdToP_ASSO
     wtchwrd_setord_asso = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_ASSO',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],  # topr-vw103
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd ASSO',
         dag=dag,
         email_on_failure=True,

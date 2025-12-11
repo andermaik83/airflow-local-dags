@@ -12,13 +12,16 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path, SSHConnections
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 # Get environment from current DAG path
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
+
+# SSH Connection
+SSH_CONN_ID = resolve_connection_id(ENV, "opr_vl102")
 
 # DAG Definition
 default_args = {
@@ -40,16 +43,13 @@ dag = DAG(
     tags=[env, app_name, 'dataproc', 'images'],
 )
 
-# SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
-
 # TaskGroup representing BOX tbSLRE_images
 with TaskGroup(group_id=f'{env_pre}bSLRE_images', dag=dag) as images_taskgroup:
     
     # tcSLRE_renimg - First task in the BOX
     slre_renimg = SSHOperator(
         task_id=f'{env_pre}cSLRE_renimg',
-        ssh_conn_id=SSH_CONN_ID_1,
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/SLRE/SLRE_renimg/proc/SLRE_renimg.sh ',
         dag=dag,
         doc_md="""
@@ -64,7 +64,7 @@ with TaskGroup(group_id=f'{env_pre}bSLRE_images', dag=dag) as images_taskgroup:
     # tcSLRE_grpimgs - Groups images, depends on renimg
     slre_grpimgs = SSHOperator(
         task_id=f'{env_pre}cSLRE_grpimgs',
-        ssh_conn_id=SSH_CONN_ID_1,
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/SLRE/SLRE_grpimgs/proc/SLRE_startgrpimgs.sh ',
         dag=dag,
         doc_md="""
@@ -79,7 +79,7 @@ with TaskGroup(group_id=f'{env_pre}bSLRE_images', dag=dag) as images_taskgroup:
     # tcSLRE_cnvimg - Convert images, depends on grpimgs
     slre_cnvimg = SSHOperator(
         task_id=f'{env_pre}cSLRE_cnvimg',
-        ssh_conn_id=SSH_CONN_ID_1,
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/SLRE/SLRE_cnvimg/proc/SLRE_cnvimg.sh ',
         dag=dag,
         doc_md="""
@@ -94,7 +94,7 @@ with TaskGroup(group_id=f'{env_pre}bSLRE_images', dag=dag) as images_taskgroup:
     # tcSLRE_ldimg - Load images, depends on cnvimg
     slre_ldimg = SSHOperator(
         task_id=f'{env_pre}cSLRE_ldimg',
-        ssh_conn_id=SSH_CONN_ID_1,
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/SLRE/SLRE_cnvldimg/proc/SLRE_cnvldimg.sh ',
         dag=dag,
         doc_md="""

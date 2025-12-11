@@ -28,18 +28,16 @@ import sys
 
 # Import shared environment detection
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
-from utils.common_utils import get_environment_from_path
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 app_name = 'watch'
 env_pre = env[0]  # 't' for TEST
 
-SSH_CONNECTIONS = {
-    'LINUX_MONITOR': 'tgen_vl105',
-    'LINUX_PRIMARY': 'tgen_vl101',
-    'WINDOWS_PRIMARY': 'topr_vw103',
-}
+# SSH Connection IDs 
+SSH_CONN_ID = resolve_connection_id(ENV, "opr_vl113")
+WINRM_CONN_ID = resolve_connection_id(ENV, "opr_vw104")
 
 DEFAULT_ARGS = {
     'owner': 'airflow',
@@ -66,7 +64,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_USAP', dag=dag) as comrec_usap_group:
 
     tf_comrec_up = SFTPSensor(
         task_id=f'{env_pre}fCOMrec_UP',
-        sftp_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        sftp_conn_id=SSH_CONN_ID,
         path=f'/{ENV}/SHR/COMrec/data/ke3/comUP.start',
         poke_interval=60,
         timeout=timedelta(days=180),
@@ -76,7 +74,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_USAP', dag=dag) as comrec_usap_group:
 
     remove_startfile_up = SSHOperator(
         task_id=f'{env_pre}cCOMrec_remove_startfile_UP',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_PRIMARY'],
+        ssh_conn_id=SSH_CONN_ID,
         command=f'rm -f /{ENV}/SHR/COMrec/data/ke3/comUP.start',
         dag=dag,
         doc_md="""**tcCOMrec_remove_startfile_UP** Removes trigger file (depends on tfCOMrec_UP)."""
@@ -84,7 +82,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_USAP', dag=dag) as comrec_usap_group:
 
     bpenricher_up = SSHOperator(
         task_id=f'{env_pre}cCOMrec_BPenricher_UP',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_BPenricher/proc/COMrec_BPenricher_OG_UP.sh comUP UP',
         dag=dag,
         doc_md="""**tcCOMrec_BPenricher_UP** Adds comcode (depends on tfCOMrec_UP)."""
@@ -92,7 +90,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_USAP', dag=dag) as comrec_usap_group:
 
     comrec_expand_up = SSHOperator(
         task_id=f'{env_pre}cCOMrec_UP',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_expand/proc/COMrec_Expand_US.sh UP',
         dag=dag,
         doc_md="""**tcCOMrec_UP** COMrec expansion (depends on tcCOMrec_BPenricher_UP)."""
@@ -104,7 +102,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_USAP', dag=dag) as comrec_usap_group:
 # ================= Parallel Root 1: WTCHwrd WatchHitComFil =================
 wtchwrd_watch_trmup = SSHOperator(
     task_id=f'{env_pre}cWTCHwrd_WatchHitComFil_TRMUP',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/WTCHwrd/WTCHwrd_hitcomfile/proc/WTCHwrd_WatchHitComfileTRM_TT.sh TRMUP UP',
     dag=dag,
     doc_md="""**tcWTCHwrd_WatchHitComFil_TRMUP** Initial WTCHwrd trigger (condition s(tbCOMrec_USAP))."""
@@ -114,14 +112,14 @@ wtchwrd_watch_trmup = SSHOperator(
 with TaskGroup(group_id=f'{env_pre}bWTCHwrd_UP', dag=dag) as wtchwrd_up_group:
     wtchwrd_setord_up = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_UP',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd UP',
         dag=dag,
         doc_md="""**tcWTCHwrd_SetOrdToP_UP** Depends on tcWTCHwrd_WatchHitComFil_TRMUP."""
     )
     wtchwrd_prod_up = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_UPc',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd UPc',
         dag=dag,
         doc_md="""**tcWTCHwrd_ProductionRun_UPc** Depends on tcWTCHwrd_SetOrdToP_UP."""
@@ -132,14 +130,14 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_UP', dag=dag) as wtchwrd_up_group:
 with TaskGroup(group_id=f'{env_pre}bWTCHwrd_OW', dag=dag) as wtchwrd_ow_group:
     wtchwrd_setord_ow = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_OW',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OWc',
         dag=dag,
         doc_md="""**tcWTCHwrd_SetOrdToP_OW** Depends on tcWTCHwrd_WatchHitComFil_TRMUP."""
     )
     wtchwrd_prod_ow = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_OW',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd OWc',
         dag=dag,
         doc_md="""**tcWTCHwrd_ProductionRun_OW** Depends on tcWTCHwrd_SetOrdToP_OW."""
@@ -150,14 +148,14 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_OW', dag=dag) as wtchwrd_ow_group:
 with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as daily_up_og_group:
     wtchwrd_setord_up_daily = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_UP_Daily',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd UP',
         dag=dag,
         doc_md="""**tcWTCHwrd_SetOrdToP_UP_Daily** Daily UP orders."""
     )
     wtchwrd_setord_og_daily = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_OG_Daily',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OG',
         dag=dag,
         doc_md="""**tcWTCHwrd_SetOrdToP_OG_Daily** Daily OG orders (depends on UP Daily)."""
@@ -167,21 +165,21 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrdToP_UP_OG_Daily', dag=dag) as 
 # ================= Parallel Root 2: NVScnt / CTR Loader Chain =================
 nvscnt_offload_up = SSHOperator(
     task_id=f'{env_pre}cNVScnt_offload_WTCH_UP',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/NVScnt/NVScnt_offload/proc/NVScnt_SaegisOffload_CTRWTCH_US.sh WATCH UP I',
     dag=dag,
     doc_md="""**tcNVScnt_offload_WTCH_UP** Condition s(tbCOMrec_USAP)."""
 )
 ctr_xsl_up = SSHOperator(
     task_id=f'{env_pre}cCTRldr_XSLtransformer_UP',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/CTRldr/CTRldr_XSLtransformer/proc/CTRldr_XSLtransformer.sh UP',
     dag=dag,
     doc_md="""**tcCTRldr_XSLtransformer_UP** Depends on tcNVScnt_offload_WTCH_UP."""
 )
 ctr_wtch_up = SSHOperator(
     task_id=f'{env_pre}cCTRldr_WTCH_UP',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/CTRldr/CTRldr_WTCH/proc/CTRldr_WTCH.sh UP',
     dag=dag,
     doc_md="""**tcCTRldr_WTCH_UP** Depends on tcCTRldr_XSLtransformer_UP."""
@@ -192,7 +190,7 @@ nvscnt_offload_up >> ctr_xsl_up >> ctr_wtch_up
 # ================= Parallel Root 3: COM file check =================
 check_comfile_sensor_up = SFTPSensor(
     task_id=f'{env_pre}fCOMrec_check_comfile_UP',
-    sftp_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    sftp_conn_id=SSH_CONN_ID,
     path=f'/{ENV}/SHR/COMrec/data/ke3/comUP',
     poke_interval=30,
     timeout=timedelta(days=30),
@@ -201,7 +199,7 @@ check_comfile_sensor_up = SFTPSensor(
 )
 comrec_check_comfile_up = SSHOperator(
     task_id=f'{env_pre}cCOMrec_check_comfile_UP',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_Checkcomfile_UP_OG.sh UP',
     dag=dag,
     doc_md="""**tcCOMrec_check_comfile_UP** Depends on tfCOMrec_check_comfile_UP."""

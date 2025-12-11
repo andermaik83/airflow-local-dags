@@ -16,7 +16,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 # Import shared utilities
 from utils.common_utils import (
     get_environment_from_path, 
-    SSHConnections,
+    resolve_connection_id,
     check_file_exists,
     check_file_pattern
 )
@@ -26,6 +26,17 @@ ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 env_pre = env[0]
 app_name = os.path.basename(os.path.dirname(__file__))
+
+# SSH Connection
+SSH_CONN_ID_1 = resolve_connection_id(ENV, "opr_vl102")
+
+# SSH Connection IDs (using shared constants)
+SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
+SSH_CONN_ID_2 = resolve_connection_id(ENV, "opr_vl111")
+
+# SLRE-specific file paths (dynamic based on environment)
+SLRE_AUTOIDX_FILE = f"/{ENV}/SHR/SLRE/work/autoidx"
+SLRE_BATCHPROC_PATTERN = f"/{ENV}/SHR/SLRE/work/batchproc*"
 
 # DAG Definition
 default_args = {
@@ -53,14 +64,6 @@ dag = DAG(
     }
   
 )
-
-# SSH Connection IDs (using shared constants)
-SSH_CONN_ID_1 = SSHConnections.TGEN_VL101  # Main processing server
-SSH_CONN_ID_2 = SSHConnections.TGEN_VL105  # File monitoring server
-
-# SLRE-specific file paths (dynamic based on environment)
-SLRE_AUTOIDX_FILE = f"/{ENV}/SHR/SLRE/work/autoidx"
-SLRE_BATCHPROC_PATTERN = f"/{ENV}/SHR/SLRE/work/batchproc*"
 
 # Preparation task for TRM processing
 slre_preptrm = SSHOperator(

@@ -27,18 +27,17 @@ import sys
 
 # Utility import path for common utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
-from utils.common_utils import get_environment_from_path
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 app_name = 'watch'
 env_pre = env[0]  # t / a / p
 
-SSH_CONNECTIONS = {
-    'LINUX_PRIMARY': 'tgen_vl101',    # tgen-vl101
-    'LINUX_MONITOR': 'tgen_vl105',    # tgen-vl105
-    'WINDOWS_PRIMARY': 'topr_vw103',  # topr-vw103
-}
+# SSH Connection IDs
+SSH_CONN_ID = resolve_connection_id(ENV, "opr_vl113")
+WINRM_CONN_ID = resolve_connection_id(ENV, "opr_vw104")
+
 
 DEFAULT_ARGS = {
     'owner': 'airflow',
@@ -66,7 +65,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_OffGaz', dag=dag) as comrec_offgaz_gr
 
     tf_comrec_og = SFTPSensor(
         task_id=f'{env_pre}fCOMrec_OG',
-        sftp_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        sftp_conn_id=SSH_CONN_ID,
         path=f'/{ENV}/SHR/COMrec/data/ke3/comOG.start',
         poke_interval=60,
         timeout=timedelta(days=365),
@@ -76,7 +75,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_OffGaz', dag=dag) as comrec_offgaz_gr
 
     remove_startfile = SSHOperator(
         task_id=f'{env_pre}cCOMrec_remove_startfile_OG',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        ssh_conn_id=SSH_CONN_ID,
         command=f'rm -f /{ENV}/SHR/COMrec/data/ke3/comOG.start',
         dag=dag,
         doc_md="""**tcCOMrec_remove_startfile_OG** Removes trigger file after detection (depends on tfCOMrec_OG)."""
@@ -84,7 +83,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_OffGaz', dag=dag) as comrec_offgaz_gr
 
     bpenricher_og = SSHOperator(
         task_id=f'{env_pre}cCOMrec_BPenricher_OG',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_BPenricher/proc/COMrec_BPenricher_OG_UP.sh comOG OG',
         dag=dag,
         doc_md="""**tcCOMrec_BPenricher_OG** Adds comcode (depends on tfCOMrec_OG)."""
@@ -92,7 +91,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_OffGaz', dag=dag) as comrec_offgaz_gr
 
     comrec_expand_og = SSHOperator(
         task_id=f'{env_pre}cCOMrec_OG',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_expand/proc/COMrec_Expand_US.sh OG',
         dag=dag,
         doc_md="""**tcCOMrec_OG** COMrec expansion (depends on tcCOMrec_BPenricher_OG)."""
@@ -105,7 +104,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_OffGaz', dag=dag) as comrec_offgaz_gr
 # =============== Parallel Branch 1: NVScnt -> CTRldr Chain ===============
 nvscnt_offload_og = SSHOperator(
     task_id=f'{env_pre}cNVScnt_offload_WTCH_OG',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/NVScnt/NVScnt_offload/proc/NVScnt_SaegisOffload_CTRWTCH_US.sh WATCH OG I',
     dag=dag,
     doc_md="""**tcNVScnt_offload_WTCH_OG** (condition s(tbCOMrec_OffGaz)) Downloads images for CTR loader."""
@@ -113,7 +112,7 @@ nvscnt_offload_og = SSHOperator(
 
 ctr_xsl_og = SSHOperator(
     task_id=f'{env_pre}cCTRldr_XSLtransformer_OG',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/CTRldr/CTRldr_XSLtransformer/proc/CTRldr_XSLtransformer.sh OG',
     dag=dag,
     doc_md="""**tcCTRldr_XSLtransformer_OG** (depends on tcNVScnt_offload_WTCH_OG)."""
@@ -121,7 +120,7 @@ ctr_xsl_og = SSHOperator(
 
 ctr_wtch_og = SSHOperator(
     task_id=f'{env_pre}cCTRldr_WTCH_OG',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/CTRldr/CTRldr_WTCH/proc/CTRldr_WTCH.sh OG',
     dag=dag,
     doc_md="""**tcCTRldr_WTCH_OG** (depends on tcCTRldr_XSLtransformer_OG)."""
@@ -130,7 +129,7 @@ ctr_wtch_og = SSHOperator(
 # =============== Parallel Branch 2: WTCHwrd ===============
 wtchwrd_watch_trmog = SSHOperator(
     task_id=f'{env_pre}cWTCHwrd_WatchHitComFil_TRMOG',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/WTCHwrd/WTCHwrd_hitcomfile/proc/WTCHwrd_WatchHitComfileTRM_TT.sh TRMOG OG',
     dag=dag,
     doc_md="""**tcWTCHwrd_WatchHitComFil_TRMOG** (condition s(tbCOMrec_OffGaz)) initial WTCHwrd step."""
@@ -140,7 +139,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_OG', dag=dag) as wtchwrd_og_group:
 
     wtchwrd_setord_og = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_OG',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd OG',
         dag=dag,
         doc_md="""**tcWTCHwrd_SetOrdToP_OG** (depends on tcWTCHwrd_WatchHitComFil_TRMOG)."""
@@ -148,7 +147,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_OG', dag=dag) as wtchwrd_og_group:
 
     wtchwrd_production_og = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_OGc',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\OPSi\proc\WTCHwrd_ProductionRunEva.cmd OGc',
         dag=dag,
         doc_md="""**tcWTCHwrd_ProductionRun_OGc** (depends on tcWTCHwrd_SetOrdToP_OG)."""
@@ -159,7 +158,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_OG', dag=dag) as wtchwrd_og_group:
 # =============== Parallel Branch 3: COM file check ===============
 check_comfile_sensor = SFTPSensor(
     task_id=f'{env_pre}fCOMrec_check_comfile_OG',
-    sftp_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    sftp_conn_id=SSH_CONN_ID,
     path=f'/{ENV}/SHR/COMrec/data/ke3/comOG',
     poke_interval=30,
     timeout=timedelta(days=30),
@@ -169,7 +168,7 @@ check_comfile_sensor = SFTPSensor(
 
 comrec_check_comfile_og = SSHOperator(
     task_id=f'{env_pre}cCOMrec_check_comfile_OG',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/COMrec/COMrec_oper/proc/COMrec_Checkcomfile_UP_OG.sh OG',
     dag=dag,
     doc_md="""**tcCOMrec_check_comfile_OG** (depends on tfCOMrec_check_comfile_OG)."""

@@ -5,7 +5,7 @@ Shared functions for SSH operations and file checking across multiple DAGs
 
 import logging
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 
 
 def get_environment_from_path(file_path: str) -> str:
@@ -158,15 +158,40 @@ else
 fi
 '''.strip()
 
-
-# SSH Connection ID constants for reuse across DAGs
-class SSHConnections:
-    """Constants for SSH connection IDs used across ALBA and SLRE DAGs"""
-    TGEN_VL101 = 'tgen_vl101'  # Main Linux processing server
-    TGEN_VL105 = 'tgen_vl105'  # File monitoring server
-    TOPR_VW103 = 'topr_vw103'  # Windows batch processing server
     
 def get_file_check_command():
     """Add the missing function implementation"""
     # Your implementation here
     pass
+
+# ================= Environment-aware Connection Resolver =================
+# Unified logical connection names -> environment-specific Airflow connection IDs
+_CONN_MAP: Dict[str, Dict[str, str]] = {
+    'nvs_cnt1': {'PROD': 'popr_vl101', 'TEST': 'tgen_vl105'},
+    'nvs_cnt2': {'PROD': 'popr_vl102', 'TEST': 'tgen_vl105'},
+    'sea_run1': {'PROD': 'popr_vl113', 'TEST': 'tgen_vl105', 'ACPT': 'agen_vl111'},
+    'sea_run2': {'PROD': 'popr_vl113', 'TEST': 'tgen_vl105', 'ACPT': 'agen_vl111'},
+    'sea_upd':  {'PROD': 'popr_vl112', 'TEST': 'tgen_vl106'},
+    'sea_upd2': {'PROD': 'popr_vl112', 'TEST': 'tgen_vl106'},
+    'small':    {'PROD': 'popr_vl113', 'TEST': 'tgen_vl105'},
+    'opr_vl101':{'PROD': 'popr_vl101', 'TEST': 'tgen_vl101', 'ACPT': 'agen_vl101'},
+    'opr_vl102':{'PROD': 'popr_vl102', 'TEST': 'tgen_vl101', 'ACPT': 'agen_vl101'},
+    'opr_vl103':{'PROD': 'popr_vl103', 'TEST': 'tgen_vl101', 'ACPT': 'agen_vl101'},
+    'opr_vl107':{'PROD': 'popr_vl107', 'TEST': 'tgen_vl101', 'ACPT': 'agen_vl101'},
+    'opr_vl111':{'PROD': 'popr_vl111', 'TEST': 'tgen_vl105', 'ACPT': 'agen_vl111'},
+    'opr_vl112':{'PROD': 'popr_vl112', 'TEST': 'tgen_vl106', 'ACPT': 'agen_vl111'},
+    'opr_vl113':{'PROD': 'popr_vl113', 'TEST': 'tgen_vl105', 'ACPT': 'agen_vl111'},
+    'opr_vw104':{'PROD': 'popr_vw104', 'TEST': 'topr_vw103', 'ACPT': 'aopr_vw102'},
+    'opr_vw105':{'PROD': 'popr_vw105', 'TEST': 'topr_vw103', 'ACPT': 'aopr_vw102'},
+}
+
+def resolve_connection_id(env_name: str, conn_name: str) -> str:
+    """Resolve logical conn_name into environment-specific Airflow connection ID.
+
+    If no exact environment mapping is found, falls back to TEST mapping, then returns conn_name itself.
+    """
+    env_key = env_name.upper() if env_name else 'TEST'
+    env_map = _CONN_MAP.get(conn_name)
+    if not env_map:
+        return conn_name  # pass-through
+    return env_map.get(env_key) or env_map.get('TEST') or conn_name

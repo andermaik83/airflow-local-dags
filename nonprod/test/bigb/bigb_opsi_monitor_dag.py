@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'shared'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 # Environment and connection configuration
 ENV = get_environment_from_path(__file__)
@@ -19,7 +19,9 @@ app_name = os.path.basename(os.path.dirname(__file__))
 
 SCRIPT_PATH = "e:\\local\\OPSi_monitor\\proc\\OPSi_monitor.cmd"
 LOG_DIR = "E:\\Local\\OPSi_monitor\\log"
-WINRM_CONN_ID = "topr_vw103" 
+
+# WINRM Connection ID
+WINRM_CONN_ID = resolve_connection_id(ENV,"opr_vl111")
 
 default_args = {
     'email_on_failure': False,  # alarm_if_fail: 0 means no alerts

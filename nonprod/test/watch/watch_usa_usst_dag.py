@@ -24,18 +24,16 @@ import sys
 # Add path for importing shared utilities
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
-from utils.common_utils import get_environment_from_path
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 app_name = 'watch'
 env_pre = env[0]  # 't' for test, etc.
 
-SSH_CONNECTIONS = {
-    'LINUX_PRIMARY': 'tgen_vl101',
-    'LINUX_MONITOR': 'tgen_vl105',
-    'WINDOWS_PRIMARY': 'topr_vw103',
-}
+# SSH Connection IDs 
+SSH_CONN_ID = resolve_connection_id(ENV, "opr_vl113")
+WINRM_CONN_ID = resolve_connection_id(ENV, "opr_vw104")
 
 DEFAULT_ARGS = {
     'owner': 'airflow',
@@ -64,7 +62,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_USST', dag=dag) as comrec_usst_group:
     # File watcher tfCOMrec_USST inside box
     usst_file_sensor = SFTPSensor(
         task_id=f'{env_pre}fCOMrec_USST',
-        sftp_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        sftp_conn_id=SSH_CONN_ID,
         path=f'/{ENV}/SHR/COMrec/data/ke3/comUSST',
         poke_interval=60,
         timeout=timedelta(days=365),  # long running watch
@@ -79,7 +77,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_USST', dag=dag) as comrec_usst_group:
     # Processing task tcCOMrec_USST
     comrec_usst = SSHOperator(
         task_id=f'{env_pre}cCOMrec_USST',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/COMrec/COMrec_expand/proc/COMrec_Expand_US.sh USST',
         email_on_failure=True,
         dag=dag,
@@ -96,7 +94,7 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec_USST', dag=dag) as comrec_usst_group:
 # ====== NVS Offload (tcNVScnt_offload_WTCH_USST) ======
 nvs_offload_usst = SSHOperator(
     task_id=f'{env_pre}cNVScnt_offload_WTCH_USST',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/NVScnt/NVScnt_offload/proc/NVScnt_SaegisOffload_CTRWTCH_US.sh WATCH USST I',
     dag=dag,
     email_on_failure=True,
@@ -110,7 +108,7 @@ nvs_offload_usst = SSHOperator(
 # ====== CTR Loader XSL Transformer (tcCTRldr_XSLtransformer_USST) ======
 ctr_xsl_usst = SSHOperator(
     task_id=f'{env_pre}cCTRldr_XSLtransformer_USST',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/CTRldr/CTRldr_XSLtransformer/proc/CTRldr_XSLtransformer.sh USST',
     dag=dag,
     email_on_failure=True,
@@ -123,7 +121,7 @@ ctr_xsl_usst = SSHOperator(
 # ====== CTR Loader Watch (tcCTRldr_WTCH_USST) ======
 ctr_wtch_usst = SSHOperator(
     task_id=f'{env_pre}cCTRldr_WTCH_USST',
-    ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+    ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/CTRldr/CTRldr_WTCH/proc/CTRldr_WTCH.sh USST',
     dag=dag,
     email_on_failure=True,
@@ -138,7 +136,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_USST', dag=dag) as wtchwrd_usst_grou
 
     wtchwrd_watch_trm_usst = SSHOperator(
         task_id=f'{env_pre}cWTCHwrd_WatchHitComFil_TRMUSST',
-        ssh_conn_id=SSH_CONNECTIONS['LINUX_MONITOR'],
+        ssh_conn_id=SSH_CONN_ID,
         command=f'/{ENV}/LIB/WTCHwrd/WTCHwrd_hitcomfile/proc/WTCHwrd_WatchHitComfileTRM_TT.sh TRMUSST USST',
         dag=dag,
         email_on_failure=True,
@@ -150,7 +148,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_USST', dag=dag) as wtchwrd_usst_grou
 
     wtchwrd_setord_usst = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_SetOrdToP_USST',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_SetOrdToP.cmd STc',
         dag=dag,
         email_on_failure=True,
@@ -162,7 +160,7 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_USST', dag=dag) as wtchwrd_usst_grou
 
     wtchwrd_prod_usst = WinRMOperator(
         task_id=f'{env_pre}cWTCHwrd_ProductionRun_USSTc',
-        ssh_conn_id=SSH_CONNECTIONS['WINDOWS_PRIMARY'],
+        ssh_conn_id=WINRM_CONN_ID,
         command=f'E:\local\OPSi\proc\WTCHwrd_ProductionRunEvaTri.cmd STc',
         dag=dag,
         email_on_failure=True,
