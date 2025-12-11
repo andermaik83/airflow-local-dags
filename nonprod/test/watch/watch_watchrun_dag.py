@@ -26,7 +26,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 sys.path.append(os.path.join(os.path.dirname(__file__), 'shared'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 # Environment and connection configuration
 ENV = get_environment_from_path(__file__)
