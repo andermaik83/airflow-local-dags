@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
+from airflow.utils.task_group import TaskGroup
 from datetime import datetime
 import os
 import sys
@@ -42,20 +43,24 @@ with DAG(
         get_pty=True,
     )
 
-    # Task 2: roma_cnvtrm
-    roma_cnvtrm = SSHOperator(
-        task_id=f'{env_pre}cROMA_cnvtrm',
-        ssh_conn_id=SSH_CONN_ID,
-        command='/TEST/LIB/ROMA/ROMA_cnvtrm/proc/ROMA_cnvtrm.sh 5000',
-        get_pty=True,
-    )
+    # tbROMA_trm TaskGroup (box): contains tcROMA_cnvtrm -> tcROMA_mv2bptrm
+    with TaskGroup(group_id=f'{env_pre}bROMA_trm') as roma_trm_group:
+        roma_cnvtrm = SSHOperator(
+            task_id=f'{env_pre}cROMA_cnvtrm',
+            ssh_conn_id=SSH_CONN_ID,
+            command='/TEST/LIB/ROMA/ROMA_cnvtrm/proc/ROMA_cnvtrm.sh 5000',
+            get_pty=True,
+        )
 
-    # Task 3: roma_mv2bptrm
-    roma_mv2bptrm = SSHOperator(
-        task_id=f'{env_pre}cROMA_mv2bptrm',
-        ssh_conn_id=SSH_CONN_ID,
-        command='/TEST/LIB/ROMA/ROMA_oper/proc/ROMA_mv2bptrm.sh ',
-        get_pty=True,
-    )
+        roma_mv2bptrm = SSHOperator(
+            task_id=f'{env_pre}cROMA_mv2bptrm',
+            ssh_conn_id=SSH_CONN_ID,
+            command='/TEST/LIB/ROMA/ROMA_oper/proc/ROMA_mv2bptrm.sh ',
+            get_pty=True,
+        )
 
-    roma_preptrm >> roma_cnvtrm >> roma_mv2bptrm
+        # inside-box dependency (condition: s(tcROMA_cnvtrm))
+        roma_cnvtrm >> roma_mv2bptrm
+
+    # box-level condition: s(tcROMA_preptrm)
+    roma_preptrm >> roma_trm_group

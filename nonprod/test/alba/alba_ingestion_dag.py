@@ -45,8 +45,8 @@ dag = DAG(
 
 
 # Task 1: Download image data from Unumbio
-alba_download_imgdata = SSHOperator(
-    task_id=f'{env_pre}cALBA_download_imgdata',
+alba_dldimgdata = SSHOperator(
+    task_id=f'{env_pre}cALBA_dldimgdata',
     ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_dld_img_data_from_unumbio.sh ',
     dag=dag,
@@ -62,8 +62,8 @@ alba_download_imgdata = SSHOperator(
 
 # Task 2: Prepare image data 
 # Condition: success of download task
-alba_prepare_imgdata = SSHOperator(
-    task_id=f'{env_pre}cALBA_prepare_imgdata',
+alba_prepimgdata = SSHOperator(
+    task_id=f'{env_pre}cALBA_prepimgdata',
     ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_prepdataimg.sh ',
     dag=dag,
@@ -82,4 +82,4 @@ alba_prepare_imgdata = SSHOperator(
 
 # Define task dependencies
 # Sequential execution: download -> prepare
-alba_download_imgdata >> alba_prepare_imgdata
+alba_dldimgdata >> alba_prepimgdata
