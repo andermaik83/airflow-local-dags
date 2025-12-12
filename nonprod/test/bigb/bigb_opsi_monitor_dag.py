@@ -21,7 +21,7 @@ SCRIPT_PATH = "e:\\local\\OPSi_monitor\\proc\\OPSi_monitor.cmd"
 LOG_DIR = "E:\\Local\\OPSi_monitor\\log"
 
 # WINRM Connection ID
-WINRM_CONN_ID = resolve_connection_id(ENV,"opr_vl111")
+WINRM_CONN_ID = resolve_connection_id(ENV,"opr_vw104")
 
 default_args = {
     'email_on_failure': False,  # alarm_if_fail: 0 means no alerts
