@@ -1,10 +1,10 @@
 """
 TEST WOWofl Offload Cleanup (tcWOWofl_OffloadCleanup) migrated to Airflow.
-- Schedule: Mon–Fri at 03:00
+- Schedule: Mon–Sat at 03:00
 - Machine: tgen-vl105 (via resolve_connection_id)
 - Command: /TEST/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadCleanup.sh
 - stderr redirected to /TEST/SHR/WOWofl/log/WOWofl_OffloadCleanup.log
-- Mutual exclusion approximated via pool 'wowofl_offload_tc_mutex' (1 slot)
+- Mutual exclusion approximated via pool 'wowofl_offload_mutex' (1 slot)
 """
 from __future__ import annotations
 from datetime import datetime, timedelta
@@ -22,7 +22,9 @@ ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 env_pre = env[0]
 
-SSH_VL105 = resolve_connection_id(ENV, 'opr_vl113')
+SSH_CONN_ID = resolve_connection_id(ENV, 'opr_vl113')
+
+STD_ERR_FILE = f"/{ENV}/SHR/WOWofl/log/WOWofl_OffloadCleanup.log"
 
 DEFAULT_ARGS = {
     'owner': 'test',
@@ -40,22 +42,19 @@ with DAG(
     dag_id=f"{env_pre}d_wowofl_offload_cleanup",
     default_args=DEFAULT_ARGS,
     description=f"{ENV} WOWofl Offload Cleanup",
-    schedule='0 3 * * 1-5',
+    schedule='0 3 * * 1-7',
     catchup=False,
     max_active_runs=1,
+    dag=dag,
     tags=[env, 'wowofl', 'offload', 'cleanup'],
-) as dag:
-
-    cmd = f"/{ENV}/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadCleanup.sh"
-    stderr_file = f"/{ENV}/SHR/WOWofl/log/WOWofl_OffloadCleanup.log"
-    log_dir = os.path.dirname(stderr_file)
-
-    SSHOperator(
-        task_id=f"{env_pre}cWOWofl_OffloadCleanup",
-        ssh_conn_id=SSH_VL105,
-        command=f"bash -lc 'mkdir -p {log_dir} && {cmd} 2> {stderr_file}'",
-        pool=MUTEX_POOL,
-        pool_slots=1,
-        doc_md=f"stderr: {stderr_file}",
-    )
+)
+    
+wowofl_offloadcleanup = SSHOperator(
+    task_id=f"{env_pre}cWOWofl_OffloadCleanup",
+    ssh_conn_id=SSH_CONN_ID,
+    command=f"/{ENV}/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadCleanup.sh 2> {STD_ERR_FILE}'",
+    pool=MUTEX_POOL,
+    pool_slots=1,
+    doc_md=f"stderr: {STD_ERR_FILE}",
+)
 
