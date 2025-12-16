@@ -10,16 +10,9 @@ import sys
 from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
-# Ensure shared utils importable with current folder structure
+# Utility import path for common utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
-try:
-    from utils.common_utils import get_environment_from_path, resolve_connection_id
-except Exception:
-    def get_environment_from_path(_file: str) -> str:
-        return os.getenv('AIRFLOW_ENV', 'TEST').upper()
-    def resolve_connection_id(env_name: str, _logical: str) -> str:
-        # Default TEST Linux host fallback
-        return 'topr-vl103'
+from utils.common_utils import get_environment_from_path, resolve_connection_id
 
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()

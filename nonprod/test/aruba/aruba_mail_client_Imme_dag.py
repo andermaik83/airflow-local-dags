@@ -15,9 +15,17 @@ from airflow import DAG
 from airflow.utils.task_group import TaskGroup
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 
-# Utility import path for common utils
+# Make shared utils importable when running under nonprod/test folder structure
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
-from utils.common_utils import get_environment_from_path, resolve_connection_id
+try:
+    from utils.common_utils import get_environment_from_path, resolve_connection_id
+except Exception:
+    # Fallbacks if utils can't be imported yet (e.g., during initial deploy)
+    def get_environment_from_path(_file: str) -> str:
+        return os.getenv('AIRFLOW_ENV', 'TEST').upper()
+    def resolve_connection_id(env_name: str, _logical: str) -> str:
+        # Default to TEST Windows monitor host
+        return 'topr-vw103'
 
 ENV = get_environment_from_path(__file__)
 env = ENV.lower()
@@ -41,10 +49,18 @@ dag = DAG(
     dag_id=f"{env_pre}d_{app_name}",
     default_args=DEFAULT_ARGS,
     description=f"{ENV} Aruba MailClient Workflow",
-    schedule='*/10 * * * *',  # every 10 minutes
+    schedule='*/20 * * * *',  # every 5 minutes
     catchup=False,
     max_active_runs=1,
     tags=[env, 'aruba', 'mail-client'],
+)
+
+aruba_sync_pds_resources = SSHOperator(
+    task_id=f"{env_pre}cARUBA_sync_pds_resources",
+    ssh_conn_id=SSH_CONN_ID,
+    command=f"/{ENV}/LIB/ARUBA/ARUBA_syncpdsresources/proc/ARUBA_syncpdsresources.sh  > {STDOUT_FILE} 2> {STDERR_FILE}",
+    dag=dag,
+    doc_md="""**pcARUBA_sync_pds_resources** Linux shell job executed daily at 04:00"""
 )
 
 # Box tbARUBA_MailClient represented as a TaskGroup; jobs run in parallel
