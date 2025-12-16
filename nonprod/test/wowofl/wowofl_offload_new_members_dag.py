@@ -1,0 +1,74 @@
+"""
+TEST WOWofl Offload Members (tcWOWofl_OffloadMembers) migrated to Airflow.
+- Schedule: Mon–Sat at :06,:21,:36,:51 (6,21,36,51)
+- Run window enforce: 04:00–02:45 via ShortCircuitOperator
+- Command: /TEST/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadNewMember.sh (per JIL)
+- stderr redirected to /TEST/SHR/WOWofl/log/WOWofl_OffloadOrders.log (per JIL)
+- Mutual exclusion with cleanup approximated via pool 'wowofl_offload_mutex' (1 slot)
+"""
+from __future__ import annotations
+from datetime import datetime, time, timedelta
+import os
+import sys
+
+from airflow import DAG
+from airflow.operators.python import ShortCircuitOperator
+from airflow.providers.ssh.operators.ssh import SSHOperator
+
+# Utility import path for common utils
+sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
+from utils.common_utils import get_environment_from_path, resolve_connection_id
+
+ENV = get_environment_from_path(__file__)
+env = ENV.lower()
+env_pre = env[0]
+
+SSH_VL105 = resolve_connection_id(ENV, 'opr_vl113')
+
+DEFAULT_ARGS = {
+    'owner': 'test',
+    'depends_on_past': False,
+    'start_date': datetime(2024, 1, 1),
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}
+
+MUTEX_POOL = 'wowofl_offload_mutex'
+STD_ERR_FILE = f"/{ENV}/SHR/WOWofl/log/WOWofl_OffloadOrders.log"
+
+def within_window() -> bool:
+    now = datetime.now()
+    start = time(4, 0)
+    end = time(2, 45)
+    if start <= end:
+        return start <= now.time() <= end
+    return now.time() >= start or now.time() <= end
+
+with DAG(
+    dag_id=f"{env_pre}d_wowofl_offload_members",
+    default_args=DEFAULT_ARGS,
+    description=f"{ENV} WOWofl Offload Members",
+    schedule='6,21,36,51 * * * 1-6',
+    catchup=False,
+    max_active_runs=1,
+    tags=[env, 'wowofl', 'offload', 'members'],
+) as dag:
+
+    guard = ShortCircuitOperator(
+        task_id=f"{env_pre}gWOWofl_Members_Window_Guard",
+        python_callable=within_window,
+        doc_md="Proceed only if current time is within 04:00–02:45",
+    )
+
+    run_members = SSHOperator(
+        task_id=f"{env_pre}cWOWofl_OffloadMembers",
+        ssh_conn_id=SSH_VL105,
+        command=f"/{ENV}/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadNewMember.sh 2> {STD_ERR_FILE}'",
+        pool=MUTEX_POOL,
+        pool_slots=1,
+        doc_md=f"stderr: {STD_ERR_FILE}",
+    )
+
+    guard >> run_members
