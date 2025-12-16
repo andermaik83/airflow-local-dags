@@ -58,14 +58,6 @@ with TaskGroup(group_id=f"{env_pre}bARUBA_MailClient", dag=dag) as aruba_mailcli
         doc_md="""**tcARUBA_MailClient_ForwardNewReport** Windows CMD job""",
     )
 
-    aruba_mailclient_immediate = WinRMOperator(
-        task_id=f"{env_pre}cARUBA_MailClient_Immediate",
-        ssh_conn_id=WINDOWS_CONN_ID,
-        command=r"E:\local\Aruba\mail-client\proc\mail-client-immediate.cmd",
-        dag=dag,
-        doc_md="""**tcARUBA_MailClient_Immediate** Windows CMD job""",
-    )
-
     aruba_mailclient_update = WinRMOperator(
         task_id=f"{env_pre}cARUBA_MailClient_Update",
         ssh_conn_id=WINDOWS_CONN_ID,
