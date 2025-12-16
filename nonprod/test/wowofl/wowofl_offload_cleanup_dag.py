@@ -45,16 +45,14 @@ with DAG(
     schedule='0 3 * * 1-7',
     catchup=False,
     max_active_runs=1,
-    dag=dag,
     tags=[env, 'wowofl', 'offload', 'cleanup'],
-)
-    
-wowofl_offloadcleanup = SSHOperator(
-    task_id=f"{env_pre}cWOWofl_OffloadCleanup",
-    ssh_conn_id=SSH_CONN_ID,
-    command=f"/{ENV}/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadCleanup.sh 2> {STD_ERR_FILE}'",
-    pool=MUTEX_POOL,
-    pool_slots=1,
-    doc_md=f"stderr: {STD_ERR_FILE}",
-)
+):
+    wowofl_offloadcleanup = SSHOperator(
+        task_id=f"{env_pre}cWOWofl_OffloadCleanup",
+        ssh_conn_id=SSH_CONN_ID,
+        command=f"/{ENV}/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadCleanup.sh 2> {STD_ERR_FILE}",
+        pool=MUTEX_POOL,
+        pool_slots=1,
+        doc_md=f"stderr: {STD_ERR_FILE}",
+    )
 
