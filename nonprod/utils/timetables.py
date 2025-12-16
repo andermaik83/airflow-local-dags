@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from datetime import time
+from datetime import time, datetime
 from typing import Optional
 
 import pendulum
@@ -27,9 +27,9 @@ class BetweenTimesCronTimetable(Timetable):
     end_time: time
 
     def __post_init__(self) -> None:
-        # Base cron timetable controls the day-of-week and base cadence
-        self._base = CronDataIntervalTimetable(self.cron, timezone=self.tz)
+        # Prepare timezone and underlying cron timetable
         self._tz = pendulum.timezone(self.tz)
+        self._base = CronDataIntervalTimetable(self.cron, timezone=self.tz)
 
     def _in_window(self, dt: pendulum.DateTime) -> bool:
         local = dt.in_timezone(self._tz)
@@ -46,7 +46,7 @@ class BetweenTimesCronTimetable(Timetable):
         last_automated_data_interval: Optional[DataInterval],
         restriction: TimeRestriction,
     ) -> Optional[DagRunInfo]:
-        # Iterate through base cron ticks until one falls inside the window
+        # Use Airflow's cron timetable to get candidate runs, and filter by the window
         current = last_automated_data_interval
         while True:
             info = self._base.next_dagrun_info(
@@ -54,10 +54,11 @@ class BetweenTimesCronTimetable(Timetable):
             )
             if info is None:
                 return None
-            if self._in_window(info.start):
+            # Filter by the logical_date (the tick instant), not the data interval
+            if self._in_window(info.logical_date):
                 return info
             current = info.data_interval
 
     def infer_manual_data_interval(self, *, run_after: pendulum.DateTime) -> DataInterval:
-        # Delegate to base cron timetable for manual runs
+        # Delegate to underlying cron timetable for manual runs
         return self._base.infer_manual_data_interval(run_after=run_after)
