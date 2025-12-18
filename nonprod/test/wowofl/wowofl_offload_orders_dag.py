@@ -14,7 +14,7 @@ import sys
 
 from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from utils.timetables import BetweenTimesCronTimetable
+from airflow.timetables.trigger import MultipleCronTriggerTimetable
 
 # Utility import path for common utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
@@ -39,18 +39,18 @@ DEFAULT_ARGS = {
 MUTEX_POOL = 'wowofl_offload_mutex'
 STD_ERR_FILE = f"/{ENV}/SHR/WOWofl/log/WOWofl_OffloadOrders.log"
 
-ORDERS_TIMETABLE = BetweenTimesCronTimetable(
-    cron='*/5 * * * 1-6',
-    tz='Europe/Brussels',
-    start_time=time(4, 0),
-    end_time=time(2, 45),
-)
+# Window encoded directly in schedule via cron parts
 
 with DAG(
     dag_id=f"{env_pre}d_wowofl_offload_orders",
     default_args=DEFAULT_ARGS,
     description=f"{ENV} WOWofl Offload Orders",
-    timetable=ORDERS_TIMETABLE,
+    schedule=MultipleCronTriggerTimetable(
+        '*/5 4-23 * * 1-6',                        # same-day ticks Mon–Sat
+        '*/5 0-1 * * 2-6',                         # next-day 00–01 Tue–Sat
+        '0,5,10,15,20,25,30,35,40,45 2 * * 2-6',   # next-day hour 02 capped at :45 Tue–Sat
+        timezone='Europe/Brussels',
+    ),
     catchup=False,
     max_active_runs=1,
     tags=[env, 'wowofl', 'offload', 'orders'],

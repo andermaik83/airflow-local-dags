@@ -1,7 +1,7 @@
 """
 TEST WOWofl Offload Members (tcWOWofl_OffloadMembers) migrated to Airflow.
 - Schedule: Mon–Sat at :06,:21,:36,:51 (6,21,36,51)
-- Run window enforced via timetable: 04:00–02:45 (Europe/Brussels)
+- Run window enforced via schedule (MultipleCronTriggerTimetable): 04:00–02:45 (Europe/Brussels)
 - Command: /TEST/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadNewMember.sh (per JIL)
 - stderr redirected to /TEST/SHR/WOWofl/log/WOWofl_OffloadOrders.log (per JIL)
 - Mutual exclusion with cleanup approximated via pool 'wowofl_offload_mutex' (1 slot)
@@ -13,7 +13,7 @@ import sys
 
 from airflow import DAG
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from utils.timetables import BetweenTimesCronTimetable
+from airflow.timetables.trigger import MultipleCronTriggerTimetable
 
 # Utility import path for common utils
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
@@ -38,18 +38,17 @@ DEFAULT_ARGS = {
 MUTEX_POOL = 'wowofl_offload_mutex'
 STD_ERR_FILE = f"/{ENV}/SHR/WOWofl/log/WOWofl_OffloadOrders.log"
 
-MEMBERS_TIMETABLE = BetweenTimesCronTimetable(
-    cron='6,21,36,51 * * * 1-6',
-    tz='Europe/Brussels',
-    start_time=time(4, 0),
-    end_time=time(2, 45),
-)
+# Window encoded directly in schedule via two cron parts (Mon–Sat same-day, Tue–Sat early morning)
 
 with DAG(
     dag_id=f"{env_pre}d_wowofl_offload_members",
     default_args=DEFAULT_ARGS,
     description=f"{ENV} WOWofl Offload Members",
-    timetable=MEMBERS_TIMETABLE,
+    schedule=MultipleCronTriggerTimetable(
+        '6,21,36,51 4-23 * * 1-6',  # same-day ticks 04:00–23:59 Mon–Sat
+        '6,21,36 0-2 * * 2-6',      # next-day early morning Tue–Sat (no Sunday)
+        timezone='Europe/Brussels',
+    ),
     catchup=False,
     max_active_runs=1,
     tags=[env, 'wowofl', 'offload', 'members'],
@@ -63,4 +62,5 @@ with DAG(
         pool_slots=1,
         doc_md=f"stderr: {STD_ERR_FILE}",
     )
+
 
