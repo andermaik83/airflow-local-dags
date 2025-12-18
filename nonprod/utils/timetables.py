@@ -10,48 +10,48 @@ from airflow.timetables.base import DataInterval, DagRunInfo, TimeRestriction, T
 
 @dataclass
 class BetweenTimesCronTimetable(Timetable):
-    """
-    Yield cron ticks only if the local time-of-day is inside a window.
-    Days-of-week and minute cadence come from the cron expression; this class
-    filters by hour window (supports crossing midnight).
-    """
-    cron: str
-    tz: str
-    start_time: time       # e.g., time(4, 0)
-    end_time: time         # e.g., time(2, 45)
+	"""
+	A timetable that emits cron ticks only when the local time-of-day is inside
+	a daily window (supports crossing midnight). Days-of-week and cadence come
+	from the cron expression; this class filters by the time window only.
+	"""
 
-    def _in_window(self, dt: pendulum.DateTime) -> bool:
-        local = dt.in_timezone(self.tz)
-        t = local.time()
-        if self.start_time <= self.end_time:
-            return self.start_time <= t <= self.end_time
-        # Crossing midnight: allow >= start OR <= end
-        return t >= self.start_time or t <= self.end_time
+	cron: str
+	tz: str
+	start_time: time
+	end_time: time
 
-    def next_dagrun_info(
-        self,
-        *,
-        last_automated_data_interval: Optional[DataInterval],
-        restriction: TimeRestriction,
-    ) -> Optional[DagRunInfo]:
-        tz = pendulum.timezone(self.tz)
-        # Determine starting point
-        if last_automated_data_interval is None:
-            base = (restriction.earliest or pendulum.now(tz)).in_timezone(tz)
-        else:
-            base = last_automated_data_interval.end.in_timezone(tz)
+	def _in_window(self, dt: pendulum.DateTime) -> bool:
+		local = dt.in_timezone(self.tz)
+		t = local.time()
+		if self.start_time <= self.end_time:
+			return self.start_time <= t <= self.end_time
+		# Cross-midnight window: allow >= start OR <= end
+		return t >= self.start_time or t <= self.end_time
 
-        # Iterate cron ticks until one falls inside the window (respect restriction.latest)
-        latest = restriction.latest.in_timezone(tz) if restriction.latest else None
-        itr = croniter(self.cron, base.naive())
-        while True:
-            next_dt_py: datetime = itr.get_next(datetime)
-            next_dt = pendulum.instance(next_dt_py, tz=tz)
-            if latest and next_dt > latest:
-                return None
-            if self._in_window(next_dt):
-                # Use an exact interval at tick (Airflow will run the task at logical_date)
-                return DagRunInfo.interval(start=next_dt, end=next_dt)
+	def next_dagrun_info(
+		self,
+		*,
+		last_automated_data_interval: Optional[DataInterval],
+		restriction: TimeRestriction,
+	) -> Optional[DagRunInfo]:
+		tz = pendulum.timezone(self.tz)
+		if last_automated_data_interval is None:
+			base = (restriction.earliest or pendulum.now(tz)).in_timezone(tz)
+		else:
+			base = last_automated_data_interval.end.in_timezone(tz)
 
-    def infer_manual_data_interval(self, *, run_after: pendulum.DateTime) -> DataInterval:
-        return DataInterval.exact(run_after)
+		latest = restriction.latest.in_timezone(tz) if restriction.latest else None
+		itr = croniter(self.cron, base.naive())
+		for _ in range(1000):  # safety cap
+			next_py: datetime = itr.get_next(datetime)
+			next_dt = pendulum.instance(next_py, tz=tz)
+			if latest and next_dt > latest:
+				return None
+			if self._in_window(next_dt):
+				return DagRunInfo.logical_date(next_dt)
+		return None
+
+	def infer_manual_data_interval(self, *, run_after: pendulum.DateTime) -> DataInterval:
+		# Use instantaneous interval at run_after
+		return DataInterval(start=run_after, end=run_after)

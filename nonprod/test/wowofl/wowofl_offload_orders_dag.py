@@ -39,15 +39,12 @@ DEFAULT_ARGS = {
 MUTEX_POOL = 'wowofl_offload_mutex'
 STD_ERR_FILE = f"/{ENV}/SHR/WOWofl/log/WOWofl_OffloadOrders.log"
 
-# Timetable: Mon–Sat every 5 minutes, only within 04:00–02:45 (Europe/Brussels)
 ORDERS_TIMETABLE = BetweenTimesCronTimetable(
     cron='*/5 * * * 1-6',
     tz='Europe/Brussels',
     start_time=time(4, 0),
     end_time=time(2, 45),
 )
-
-"""Window logic moved to timetable; no in-DAG guard required."""
 
 with DAG(
     dag_id=f"{env_pre}d_wowofl_offload_orders",
@@ -67,4 +64,5 @@ with DAG(
         pool_slots=1,
         doc_md=f"stderr: {STD_ERR_FILE}",
     )
+
 
