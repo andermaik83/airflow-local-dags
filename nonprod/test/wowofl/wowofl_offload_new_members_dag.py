@@ -35,7 +35,7 @@ DEFAULT_ARGS = {
     'retry_delay': timedelta(minutes=5),
 }
 
-MUTEX_POOL = 'wowofl_offload_mutex'
+CLEANUP_GATE_POOL = 'wowofl_cleanup_gate'
 STD_ERR_FILE = f"/{ENV}/SHR/WOWofl/log/WOWofl_OffloadOrders.log"
 
 # Window encoded directly in schedule via two cron parts (Mon–Sat same-day, Tue–Sat early morning)
@@ -59,7 +59,7 @@ with DAG(
         task_id=f"{env_pre}cWOWofl_OffloadNewMember",
         ssh_conn_id=SSH_CONN_ID,
         command=f"/{ENV}/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadNewMember.sh 2> {STD_ERR_FILE}",
-        pool=MUTEX_POOL,
+        pool=CLEANUP_GATE_POOL,   # allow Orders/New Member parallelism; block on Cleanup
         pool_slots=1,
         doc_md=f"stderr: {STD_ERR_FILE}",
     )

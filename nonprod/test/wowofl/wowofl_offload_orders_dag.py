@@ -36,7 +36,7 @@ DEFAULT_ARGS = {
     'retry_delay': timedelta(minutes=5),
 }
 
-MUTEX_POOL = 'wowofl_offload_mutex'
+CLEANUP_GATE_POOL = 'wowofl_cleanup_gate'
 STD_ERR_FILE = f"/{ENV}/SHR/WOWofl/log/WOWofl_OffloadOrders.log"
 
 # Window encoded directly in schedule via cron parts
@@ -46,9 +46,9 @@ with DAG(
     default_args=DEFAULT_ARGS,
     description=f"{ENV} WOWofl Offload Orders",
     schedule=MultipleCronTriggerTimetable(
-        '6,12,18,24,30,36,42,48,54 4-23 * * 1-6',       # same-day ticks Mon–Sat
-        '6,12,18,24,30,36,42,48,54 0-1 * * 2-6',        # next-day 00–01 Tue–Sat
-        '6,12,18,24,30,36,42 2 * * 2-6',                # next-day hour 02 capped at :45 Tue–Sat
+        '*/5 * * 1-6',                              # same-day ticks Mon–Sat
+        '*/5 0-1 * * 2-6',                          # next-day 00–01 Tue–Sat
+        '0,5,10,15,20,25,30,35,40 2 * * 2-6',       # next-day hour 02 capped at :45 Tue–Sat
         timezone='Europe/Brussels',
     ),
     catchup=False,
@@ -60,7 +60,7 @@ with DAG(
         task_id=f"{env_pre}cWOWofl_OffloadOrders",
         ssh_conn_id=SSH_CONN_ID,
         command=f"/{ENV}/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadOrders.sh 2> {STD_ERR_FILE}",
-        pool=MUTEX_POOL,
+        pool=CLEANUP_GATE_POOL,  # allow parallel with Orders; block on Cleanup
         pool_slots=1,
         doc_md=f"stderr: {STD_ERR_FILE}",
     )

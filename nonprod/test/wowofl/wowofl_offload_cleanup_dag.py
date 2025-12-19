@@ -36,7 +36,8 @@ DEFAULT_ARGS = {
     'retry_delay': timedelta(minutes=5),
 }
 
-MUTEX_POOL = 'wowofl_offload_mutex'
+CLEANUP_GATE_POOL = 'wowofl_cleanup_gate'
+CLEANUP_GATE_SLOTS = 5  # must match the pool capacity in Airflow
 
 with DAG(
     dag_id=f"{env_pre}d_wowofl_offload_cleanup",
@@ -51,8 +52,8 @@ with DAG(
         task_id=f"{env_pre}cWOWofl_OffloadCleanup",
         ssh_conn_id=SSH_CONN_ID,
         command=f"/{ENV}/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadCleanup.sh 2> {STD_ERR_FILE}",
-        pool=MUTEX_POOL,
-        pool_slots=1,
+        pool=CLEANUP_GATE_POOL,
+        pool_slots=CLEANUP_GATE_SLOTS,
         doc_md=f"stderr: {STD_ERR_FILE}",
     )
 
