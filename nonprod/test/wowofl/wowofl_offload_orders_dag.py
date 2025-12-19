@@ -46,9 +46,9 @@ with DAG(
     default_args=DEFAULT_ARGS,
     description=f"{ENV} WOWofl Offload Orders",
     schedule=MultipleCronTriggerTimetable(
-        '*/5 4-23 * * 1-6',                        # same-day ticks Mon–Sat
-        '*/5 0-1 * * 2-6',                         # next-day 00–01 Tue–Sat
-        '0,5,10,15,20,25,30,35,40,45 2 * * 2-6',   # next-day hour 02 capped at :45 Tue–Sat
+        '6,12,18,24,30,36,42,48,54 4-23 * * 1-6',       # same-day ticks Mon–Sat
+        '6,12,18,24,30,36,42,48,54 0-1 * * 2-6',        # next-day 00–01 Tue–Sat
+        '6,12,18,24,30,36,42 2 * * 2-6',                # next-day hour 02 capped at :45 Tue–Sat
         timezone='Europe/Brussels',
     ),
     catchup=False,

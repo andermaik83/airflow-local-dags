@@ -41,21 +41,22 @@ STD_ERR_FILE = f"/{ENV}/SHR/WOWofl/log/WOWofl_OffloadOrders.log"
 # Window encoded directly in schedule via two cron parts (Mon–Sat same-day, Tue–Sat early morning)
 
 with DAG(
-    dag_id=f"{env_pre}d_wowofl_offload_members",
+    dag_id=f"{env_pre}d_wowofl_offload_new_member",
     default_args=DEFAULT_ARGS,
-    description=f"{ENV} WOWofl Offload Members",
+    description=f"{ENV} WOWofl Offload New Members",
     schedule=MultipleCronTriggerTimetable(
-        '6,21,36,51 4-23 * * 1-6',  # same-day ticks 04:00–23:59 Mon–Sat
-        '6,21,36 0-2 * * 2-6',      # next-day early morning Tue–Sat (no Sunday)
+        '5,20,35,50 4-23 * * 1-6',  # same-day ticks 04:00–23:59 Mon–Sat
+        '5,20,35,50 1 * * 2-6',     # next-day 00–01 Tue–Sat
+        '5,20,35 2 * * 2-6',        # next-day hour 02 capped at :45 Tue–Sat
         timezone='Europe/Brussels',
     ),
     catchup=False,
     max_active_runs=1,
-    tags=[env, 'wowofl', 'offload', 'members'],
+    tags=[env, 'wowofl', 'offload', 'new_member'],
 ) as dag:
 
     run_members = SSHOperator(
-        task_id=f"{env_pre}cWOWofl_OffloadMembers",
+        task_id=f"{env_pre}cWOWofl_OffloadNewMember",
         ssh_conn_id=SSH_CONN_ID,
         command=f"/{ENV}/LIB/WOWofl/WOWofl_Offload/proc/WOWofl_OffloadNewMember.sh 2> {STD_ERR_FILE}",
         pool=MUTEX_POOL,
