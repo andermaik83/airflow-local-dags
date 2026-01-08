@@ -41,7 +41,7 @@ with DAG(
     default_args=DEFAULT_ARGS,
     description=f"{ENV} OPSi Replicate Prism",
     schedule=CronTriggerTimetable(
-        '9,19,29,39,49 * * * 0-6',
+        '9,19,29,39,49,59 * * * *',
         timezone='Europe/Brussels',
     ),
     catchup=False,
