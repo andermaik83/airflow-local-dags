@@ -11,7 +11,7 @@ import os
 import sys
 
 from airflow import DAG
-from airflow.providers.ssh.operators.ssh import SSHOperator
+from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 from airflow.timetables.trigger import CronTriggerTimetable
 
 # Utility import path for common utils
@@ -23,7 +23,7 @@ env = ENV.lower()
 env_pre = env[0]
 
 # Autosys machine: topr-vw103
-SSH_CONN_ID = resolve_connection_id(ENV, 'opr_vw104')
+WINDOWS_CONN_ID = resolve_connection_id(ENV, 'opr_vw104')
 
 DEFAULT_ARGS = {
     'owner': 'test',
@@ -48,8 +48,8 @@ with DAG(
     max_active_runs=1,
     tags=[env, 'opsi', 'replicate', 'prism'],
 ):
-    repl_prism = SSHOperator(
+    repl_prism = WinRMOperator(
         task_id=f"{env_pre}cOPSi_Repl_Prism",
-        ssh_conn_id=SSH_CONN_ID,
+        ssh_conn_id=WINDOWS_CONN_ID,
         command=r"E:\\local\\OPSi\\proc\\OPSi_Repl_Prism.cmd"
     )
