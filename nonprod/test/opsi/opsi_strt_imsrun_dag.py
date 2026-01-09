@@ -23,7 +23,7 @@ ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 env_pre = env[0]
 
-SSH_CONN_ID = resolve_connection_id(ENV, 'opr_vl113')
+SSH_CONN_ID = resolve_connection_id(ENV, 'opr-vl111')
 
 DEFAULT_ARGS = {
     'owner': 'test',
