@@ -44,8 +44,6 @@ WATCH_DEFAULT_ARGS = {
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': True,
     'email_on_retry': False,
-    'retries': 2,
-    'retry_delay': timedelta(minutes=5),
     'execution_timeout': timedelta(hours=4),
 }
 

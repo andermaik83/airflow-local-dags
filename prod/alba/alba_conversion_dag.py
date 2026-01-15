@@ -29,9 +29,7 @@ default_args = {
     'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': True,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'email_on_retry': False
 }
 
 dag = DAG(
@@ -55,7 +53,7 @@ ALBA_NO_IMG_FILE = f"/{ENV}/SHR/ALBA/work/ALBA_noimgtoprocess"
 
 # Task 1: Check issues (prerequisite for file watchers)
 alba_checkissue = SSHOperator(
-    task_id='alba_checkissue',
+    task_id=f'alba_checkissue_{env}',
     ssh_conn_id=SSH_CONN_ID_2,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_chkissues.sh ',
     dag=dag,
@@ -73,7 +71,7 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
     
     # File watcher for images issue - using simple SSH command
     alba_check_images = SSHOperator(
-        task_id='alba_check_images',
+        task_id=f'alba_check_images_{env}',
         ssh_conn_id=SSH_CONN_ID_2,
         command=check_file_exists(ALBA_IMG_ISSUE_FILE),
         dag=dag,
@@ -88,7 +86,7 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
     
     # File watcher for XML issue - using simple SSH command
     alba_check_xml = SSHOperator(
-        task_id='alba_check_xml',
+        task_id=f'alba_check_xml_{env}',
         ssh_conn_id=SSH_CONN_ID_2,
         command=check_file_exists(ALBA_XML_ISSUE_FILE),
         dag=dag,
@@ -103,7 +101,7 @@ with TaskGroup("alba_file_watchers", dag=dag) as file_watchers_group:
     
     # File watcher for no images - using simple SSH command
     alba_check_noimages = SSHOperator(
-        task_id='alba_check_noimages',
+        task_id=f'alba_check_noimages_{env}',
         ssh_conn_id=SSH_CONN_ID_2,
         command=check_file_exists(ALBA_NO_IMG_FILE),
         dag=dag,
@@ -121,7 +119,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     
     # Step 1: Rename images
     alba_renimg = SSHOperator(
-        task_id='alba_renimg',
+        task_id=f'alba_renimg_{env}',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/ALBA/ALBA_renimg/proc/ALBA_renimg.sh ',
         dag=dag,
@@ -135,7 +133,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     
     # Step 2: Convert images (depends on rename success)
     alba_cnvimg = SSHOperator(
-        task_id='alba_cnvimg',
+        task_id=f'alba_cnvimg_{env}',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/ALBA/ALBA_cnvimg/proc/ALBA_cnvimg.sh ',
         dag=dag,
@@ -149,7 +147,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     
     # Step 3: Convert loaded images (depends on convert success)
     alba_cnvldimg = SSHOperator(
-        task_id='alba_cnvldimg',
+        task_id=f'alba_cnvldimg_{env}',
         ssh_conn_id=SSH_CONN_ID_1,
         command=f'/{ENV}/LIB/ALBA/ALBA_cnvldimg/proc/ALBA_cnvldimg.sh ',
         dag=dag,
@@ -163,9 +161,9 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     
     # Error handling: Mail errors if rename fails
     alba_mail_errors_renimg = SSHOperator(
-        task_id='alba_mail_errors_renimg',
+        task_id=f'alba_mail_errors_renimg_{env}',
         ssh_conn_id=SSH_CONN_ID_1,
-        command='/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_mail_errors_renimg.sh ',
+        command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_mail_errors_renimg.sh ',
         trigger_rule=TriggerRule.ONE_FAILED,  # Runs only if alba_renimg fails
         dag=dag,
         doc_md="""
@@ -178,7 +176,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     
     # Success event: Send success event
     alba_success_renimg = BashOperator(
-        task_id='alba_success_renimg',
+        task_id=f'alba_success_renimg_{env}',
         bash_command='echo "SUCCESS: tcALBA_renimg completed successfully"',
         trigger_rule=TriggerRule.ALL_SUCCESS,
         dag=dag,
@@ -192,7 +190,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
     
     # Final step: Mail images summary
     alba_mail_images = SSHOperator(
-        task_id='alba_mail_images',
+        task_id=f'alba_mail_images_{env}',
         ssh_conn_id=SSH_CONN_ID_2,
         command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_mail_images.sh ',
         dag=dag,
@@ -206,7 +204,7 @@ with TaskGroup("alba_image_processing", dag=dag) as image_processing_group:
 
 # XML Processing Task (depends on both XML and no-images file watchers)
 alba_mv_xml = SSHOperator(
-    task_id='alba_mv_xml',
+    task_id=f'alba_mv_xml_{env}',
     ssh_conn_id=SSH_CONN_ID_2,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_mv_XML2IArcanum.sh ',
     doc_md="""

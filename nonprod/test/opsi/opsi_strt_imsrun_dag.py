@@ -23,16 +23,14 @@ ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 env_pre = env[0]
 
-SSH_CONN_ID = resolve_connection_id(ENV, 'opr-vl111')
+SSH_CONN_ID = resolve_connection_id(ENV, 'opr_vl111')
 
 DEFAULT_ARGS = {
     'owner': 'test',
     'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'email_on_retry': False
 }
 
 def _schedule_for_env(env_name: str):

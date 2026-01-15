@@ -29,7 +29,6 @@ DEFAULT_ARGS = {
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 0,
 }
 
 with DAG(

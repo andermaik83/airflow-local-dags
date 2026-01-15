@@ -5,7 +5,7 @@ Shared functions for SSH operations and file checking across multiple DAGs
 
 import logging
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Callable
 
 
 def get_environment_from_path(file_path: str) -> str:
@@ -158,15 +158,34 @@ else
 fi
 '''.strip()
 
+# ================= Environment-aware Connection Resolver =================
+# Unified logical connection names -> environment-specific Airflow connection IDs
+_CONN_MAP: Dict[str, Dict[str, str]] = {
+    'nvs_cnt1': {'PROD': 'popr-vl101', 'TEST': 'tgen-vl105', 'ACPT': 'tgen-vl105'},
+    'nvs_cnt2': {'PROD': 'popr-vl102', 'TEST': 'tgen-vl105', 'ACPT': 'tgen-vl105'},
+    'sea_run1': {'PROD': 'popr-vl113', 'TEST': 'tgen-vl105', 'ACPT': 'agen-vl111'},
+    'sea_run2': {'PROD': 'popr-vl113', 'TEST': 'tgen-vl105', 'ACPT': 'agen-vl111'},
+    'sea_upd':  {'PROD': 'popr-vl112', 'TEST': 'tgen-vl106', 'ACPT': 'tgen-vl106'},
+    'sea_upd2': {'PROD': 'popr-vl112', 'TEST': 'tgen-vl106', 'ACPT': 'tgen-vl106'},
+    'small':    {'PROD': 'popr-vl113', 'TEST': 'tgen-vl105', 'ACPT': 'tgen-vl105'},
+    'opr_vl101':{'PROD': 'popr-vl101', 'TEST': 'tgen-vl101', 'ACPT': 'agen-vl101'},
+    'opr_vl102':{'PROD': 'popr-vl102', 'TEST': 'tgen-vl101', 'ACPT': 'agen-vl101'},
+    'opr_vl103':{'PROD': 'popr-vl103', 'TEST': 'tgen-vl101', 'ACPT': 'agen-vl101'},
+    'opr_vl107':{'PROD': 'popr-vl107', 'TEST': 'tgen-vl101', 'ACPT': 'agen-vl101'},
+    'opr_vl111':{'PROD': 'popr-vl111', 'TEST': 'tgen-vl105', 'ACPT': 'agen-vl111'},
+    'opr_vl112':{'PROD': 'popr-vl112', 'TEST': 'tgen-vl106', 'ACPT': 'agen-vl111'},
+    'opr_vl113':{'PROD': 'popr-vl113', 'TEST': 'tgen-vl105', 'ACPT': 'agen-vl111'},
+    'opr_vw104':{'PROD': 'popr-vw104', 'TEST': 'topr-vw103', 'ACPT': 'aopr-vw102'},
+    'opr_vw105':{'PROD': 'popr-vw105', 'TEST': 'topr-vw103', 'ACPT': 'aopr-vw102'},
+}
 
-# SSH Connection ID constants for reuse across DAGs
-class SSHConnections:
-    """Constants for SSH connection IDs used across ALBA and SLRE DAGs"""
-    TGEN_VL101 = 'tgen_vl101'  # Main Linux processing server
-    TGEN_VL105 = 'tgen_vl105'  # File monitoring server
-    TOPR_VW103 = 'topr_vw103'  # Windows batch processing server
+def resolve_connection_id(env_name: str, conn_name: str) -> str:
+    """Resolve logical conn_name into environment-specific Airflow connection ID.
 
-def get_file_check_command():
-    """Add the missing function implementation"""
-    # Your implementation here
-    pass
+    If no exact environment mapping is found, falls back to TEST mapping, then returns conn_name itself.
+    """
+    env_key = env_name.upper() if env_name else 'TEST'
+    env_map = _CONN_MAP.get(conn_name)
+    if not env_map:
+        return conn_name  # pass-through
+    return env_map.get(env_key) or env_map.get('TEST') or conn_name

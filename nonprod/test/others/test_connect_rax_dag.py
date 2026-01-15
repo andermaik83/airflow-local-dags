@@ -16,7 +16,7 @@ default_args = {
     "email": ["harikrishna.savarala@clarivate.com"],
     "email_on_failure": True,
     "email_on_retry": False,
-    "retries": 0,  # set >0 if you want retries
+
 }
 
 with DAG(

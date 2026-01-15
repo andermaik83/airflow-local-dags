@@ -25,9 +25,7 @@ default_args = {
     'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': True,  # alarm_if_fail: 1 in Autosys
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'email_on_retry': False
 }
 
 dag = DAG(
@@ -44,7 +42,7 @@ SSH_CONN_ID = 'tgen_vl105'
 
 # Task 1: Download image data from Unumbio
 alba_download_imgdata = SSHOperator(
-    task_id='alba_download_imgdata',
+    task_id=f'alba_download_imgdata_{env}',
     ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_dld_img_data_from_unumbio.sh ',
     dag=dag,
@@ -61,7 +59,7 @@ alba_download_imgdata = SSHOperator(
 # Task 2: Prepare image data 
 # Condition: success of download task
 alba_prepare_imgdata = SSHOperator(
-    task_id='alba_prepare_imgdata',
+    task_id=f'alba_prepare_imgdata_{env}',
     ssh_conn_id=SSH_CONN_ID,
     command=f'/{ENV}/LIB/ALBA/ALBA_oper/proc/ALBA_prepdataimg.sh ',
     dag=dag,

@@ -21,7 +21,7 @@ ENV = get_environment_from_path(__file__)
 env = ENV.lower()
 env_pre = env[0]
 
-SSH_CONN_ID = resolve_connection_id(ENV, 'opr_vl113')
+SSH_CONN_ID = resolve_connection_id(ENV, 'opr_vl111')
 
 DEFAULT_ARGS = {
     'owner': 'test',
@@ -29,8 +29,6 @@ DEFAULT_ARGS = {
     'start_date': datetime(2024, 1, 1),
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
 }
 
 def _schedule_for_env(env_name: str):
@@ -69,5 +67,4 @@ with DAG(
         task_id=f"{env_pre}cOPSi_Strt_SEArun_0",
         ssh_conn_id=SSH_CONN_ID,
         command=f"/{ENV}/LIB/OPSi/proc/OPSi_start_SearchRun.sh 0",
-        doc_md=f"stderr: {STD_ERR_FILE}",
     )
