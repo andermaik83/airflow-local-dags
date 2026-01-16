@@ -29,7 +29,8 @@ MAIL_BIN = shutil.which("mail") or shutil.which("mailx")
 LOOKBACK_HOURS = int(Variable.get("AIRFLOW_ALERT_LOOKBACK_HOURS", default_var=1))
 
 TZ = "Europe/Brussels"
-WEBSERVER_URL = os.getenv("AIRFLOW__WEBSERVER__BASE_URL", "http://localhost:8080")
+# Use Kubernetes service name when running in-cluster
+WEBSERVER_URL = os.getenv("AIRFLOW__WEBSERVER__BASE_URL", "http://airflow-api-server.airflow-local.svc.cluster.local:8080")
 
 DEFAULT_ARGS = {
     'owner': 'airflow',
