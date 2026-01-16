@@ -115,7 +115,7 @@ with DAG(
     dag_id=f'{env_pre}d_failure_monitor',
     default_args=DEFAULT_ARGS,
     description=f'{ENV} Hourly failure monitoring and email reporting',
-    schedule='0 * * * *',  # Every hour at minute 0
+    schedule='*/5 * * * *',  # Every 5 minutes
     catchup=False,
     max_active_runs=1,
     tags=[env, 'monitoring', 'alerts', 'failures'],
