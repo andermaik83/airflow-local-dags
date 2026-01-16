@@ -13,7 +13,6 @@ from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.models import Variable
-from airflow.hooks.base import BaseHook
 
 # Utility import path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
@@ -24,12 +23,13 @@ env = ENV.lower()
 env_pre = env[0]
 
 # Email config (override via Airflow Variables)
-MAIL_FROM = Variable.get("ALERT_MAIL_FROM", default_var="airflow-alerts@int.compumark.com")
+MAIL_FROM = Variable.get("ALERT_MAIL_FROM", default_var="airflow-emea@int.compumark.com")
 MAIL_TO = Variable.get("ALERT_MAIL_TO", default_var="ander.lopetegui@clarivate.com").split(",")
 MAIL_BIN = shutil.which("mail") or shutil.which("mailx")
 LOOKBACK_HOURS = int(Variable.get("AIRFLOW_ALERT_LOOKBACK_HOURS", default_var=1))
 
 TZ = "Europe/Brussels"
+WEBSERVER_URL = os.getenv("AIRFLOW__WEBSERVER__BASE_URL", "http://localhost:8080")
 
 DEFAULT_ARGS = {
     'owner': 'airflow',
@@ -46,58 +46,60 @@ def _html_escape(s: str) -> str:
 
 def check_failures(**context):
     """Query Airflow REST API for failed tasks/DAGs in the lookback window."""
-    from airflow.api.client.local_client import Client
+    import requests
+    from urllib.parse import urljoin
     
-    client = Client(api_base_url=None, auth=None)
     cutoff = datetime.utcnow() - timedelta(hours=LOOKBACK_HOURS)
+    cutoff_iso = cutoff.isoformat() + "Z"
     
     failed_tasks = []
     failed_dags = []
     
     try:
-        # Get all DAGs
-        pools = client.get_pools()
-        
-        # Query task instances via API (Airflow 3.0 compatible)
-        # Note: Local client may have limited endpoints; using alternative approach
-        from airflow.api_connexion.endpoints.task_instance_endpoint import get_task_instances
-        from airflow.www.app import create_app
-        
-        # Alternative: Use internal API (safer for Airflow 3.0)
-        import requests
-        
-        # Get Airflow webserver URL from connection or environment
-        webserver_url = os.getenv("AIRFLOW__WEBSERVER__BASE_URL", "http://localhost:8080")
-        
         # Query failed task instances
+        ti_url = urljoin(WEBSERVER_URL, "/api/v1/dags/~/dagRuns/~/taskInstances")
         ti_response = requests.get(
-            f"{webserver_url}/api/v1/dags/~/dagRuns/~/taskInstances",
+            ti_url,
             params={
-                "state": ["failed"],
-                "end_date_gte": cutoff.isoformat(),
-                "limit": 100
-            }
+                "state": "failed",
+                "end_date_gte": cutoff_iso,
+                "limit": 100,
+                "order_by": "-end_date"
+            },
+            timeout=30
         )
         
         if ti_response.ok:
-            failed_tasks = ti_response.json().get("task_instances", [])
+            data = ti_response.json()
+            failed_tasks = data.get("task_instances", [])
+            print(f"Found {len(failed_tasks)} failed task instances")
+        else:
+            print(f"Task instances API returned {ti_response.status_code}: {ti_response.text}")
         
         # Query failed DAG runs
+        dr_url = urljoin(WEBSERVER_URL, "/api/v1/dags/~/dagRuns")
         dr_response = requests.get(
-            f"{webserver_url}/api/v1/dags/~/dagRuns",
+            dr_url,
             params={
-                "state": ["failed"],
-                "end_date_gte": cutoff.isoformat(),
-                "limit": 100
-            }
+                "state": "failed",
+                "end_date_gte": cutoff_iso,
+                "limit": 100,
+                "order_by": "-end_date"
+            },
+            timeout=30
         )
         
         if dr_response.ok:
-            failed_dags = dr_response.json().get("dag_runs", [])
+            data = dr_response.json()
+            failed_dags = data.get("dag_runs", [])
+            print(f"Found {len(failed_dags)} failed DAG runs")
+        else:
+            print(f"DAG runs API returned {dr_response.status_code}: {dr_response.text}")
             
     except Exception as e:
         print(f"Error querying Airflow API: {e}")
-        print("Falling back to empty results")
+        import traceback
+        traceback.print_exc()
     
     if not failed_tasks and not failed_dags:
         print(f"No failures detected in the last {LOOKBACK_HOURS} hour(s).")
@@ -112,22 +114,25 @@ def check_failures(**context):
     if failed_tasks:
         body.append(f"<h3>Failed Tasks ({len(failed_tasks)}):</h3>")
         body.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>")
-        body.append("<tr style='background-color: #f0f0f0;'><th>DAG ID</th><th>Task ID</th><th>Execution Date</th><th>End Time</th><th>Try Number</th><th>Duration</th></tr>")
+        body.append("<tr style='background-color: #f0f0f0;'><th>DAG ID</th><th>Task ID</th><th>Run ID</th><th>End Time</th><th>Try Number</th><th>Duration</th></tr>")
         for ti in failed_tasks:
             start = ti.get("start_date")
             end = ti.get("end_date")
             dur = None
             if start and end:
-                start_dt = datetime.fromisoformat(start.replace('Z', '+00:00'))
-                end_dt = datetime.fromisoformat(end.replace('Z', '+00:00'))
-                dur = f"{(end_dt - start_dt).total_seconds():.1f}s"
+                try:
+                    start_dt = datetime.fromisoformat(start.replace('Z', '+00:00'))
+                    end_dt = datetime.fromisoformat(end.replace('Z', '+00:00'))
+                    dur = f"{(end_dt - start_dt).total_seconds():.1f}s"
+                except:
+                    pass
             
             body.append(
                 f"<tr>"
-                f"<td><strong>{_html_escape(ti.get('dag_id', ''))}</strong></td>"
-                f"<td>{_html_escape(ti.get('task_id', ''))}</td>"
-                f"<td>{ti.get('execution_date', 'N/A')}</td>"
-                f"<td>{ti.get('end_date', 'N/A')}</td>"
+                f"<td><strong>{_html_escape(ti.get('dag_id', 'N/A'))}</strong></td>"
+                f"<td>{_html_escape(ti.get('task_id', 'N/A'))}</td>"
+                f"<td style='font-size: 0.85em;'>{_html_escape(ti.get('dag_run_id', 'N/A'))}</td>"
+                f"<td>{end or 'N/A'}</td>"
                 f"<td>{ti.get('try_number', 'N/A')}</td>"
                 f"<td>{dur or 'N/A'}</td>"
                 f"</tr>"
@@ -141,8 +146,8 @@ def check_failures(**context):
         for dr in failed_dags:
             body.append(
                 f"<tr>"
-                f"<td><strong>{_html_escape(dr.get('dag_id', ''))}</strong></td>"
-                f"<td>{_html_escape(dr.get('dag_run_id', ''))}</td>"
+                f"<td><strong>{_html_escape(dr.get('dag_id', 'N/A'))}</strong></td>"
+                f"<td style='font-size: 0.85em;'>{_html_escape(dr.get('dag_run_id', 'N/A'))}</td>"
                 f"<td>{dr.get('execution_date', 'N/A')}</td>"
                 f"<td>{dr.get('end_date', 'N/A')}</td>"
                 f"</tr>"
