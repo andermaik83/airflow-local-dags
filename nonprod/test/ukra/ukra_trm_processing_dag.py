@@ -129,7 +129,7 @@ with TaskGroup(group_id=f'{env_pre}bUKRA_trm', dag=dag) as trm_taskgroup:
     # tcUKRA_checkforprevBPfiles - Check for previous BP files, depends on trancom
     ukra_checkforprevbpfiles = SSHOperator(
         task_id=f'{env_pre}cUKRA_checkforprevBPfiles',
-        ssh_conn_id=SSH_CONN_ID_2,
+        ssh_conn_id=WINRM_CONN_ID,
         command=r'E:\local\tipsocr\proc\TIPSi_start_Check_BPDB_UKRA1.cmd',
         dag=dag,
         email_on_failure=True,  # alarm_if_fail: 1
