@@ -12,7 +12,11 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))
 
 # Import shared utilities
-from utils.common_utils import get_environment_from_path, resolve_connection_id
+from utils.common_utils import (
+    get_environment_from_path, 
+    resolve_connection_id,
+    check_file_exists
+)
 
 # Get environment from current DAG path
 ENV = get_environment_from_path(__file__)
@@ -24,6 +28,9 @@ app_name = os.path.basename(os.path.dirname(__file__))
 SSH_CONN_ID = resolve_connection_id(ENV, "opr_vl101")
 WINRM_CONN_ID = resolve_connection_id(ENV, "opr_vw105")
 
+# UKRA-specific file paths (dynamic based on environment)
+UKRA_START_IMAGES_FILE = f"/{ENV}/SHR/UKRA/work/START_IMAGES"
+
 # DAG Definition
 default_args = {
     'owner': 'test',
@@ -34,12 +41,12 @@ default_args = {
 }
 
 dag = DAG(
-    f'{env_pre}d_{app_name}_trm',
+    f'{env_pre}d_{app_name}_processing',
     default_args=default_args,
-    description='UKRA TRM Processing Pipeline - BOX tbUKRA_trm workflow',
+    description='UKRA Complete Processing Pipeline - TRM and Images workflows',
     schedule=None,  # Manual trigger or external dependency
     catchup=False,
-    tags=[env, app_name, 'dataproc', 'trm'],
+    tags=[env, app_name, 'dataproc', 'trm', 'images'],
 )
 
 # TaskGroup representing BOX tbUKRA_trm
@@ -217,3 +224,91 @@ with TaskGroup(group_id=f'{env_pre}bUKRA_trm', dag=dag) as trm_taskgroup:
     
     # Linear dependency chain for merge and cleanup
     ukra_checkforprevbpfiles >> ukra_mrgtrm >> ukra_mv2bptrm >> ukra_mailtrm >> ukra_cleantrm
+
+# TaskGroup representing BOX tbUKRA_images
+with TaskGroup(group_id=f'{env_pre}bUKRA_images', dag=dag) as images_taskgroup:
+    
+    # tcUKRA_remove_startfile - Remove start file (first task in the BOX)
+    ukra_remove_startfile = SSHOperator(
+        task_id=f'{env_pre}cUKRA_remove_startfile',
+        ssh_conn_id=SSH_CONN_ID,
+        command=f'rm -f {UKRA_START_IMAGES_FILE}',
+        dag=dag,
+        email_on_failure=False,  # alarm_if_fail: 0
+        doc_md="""
+        **UKRA Remove Start File Task**
+        
+        **Purpose:**
+        - Removes the START_IMAGES flag file
+        - First step in UKRA images processing
+        - Prepares environment for image conversion
+        """
+    )
+    
+    # tcUKRA_cnvimg - Convert images, depends on remove_startfile
+    ukra_cnvimg = SSHOperator(
+        task_id=f'{env_pre}cUKRA_cnvimg',
+        ssh_conn_id=SSH_CONN_ID,
+        command=f'/{ENV}/LIB/UKRA/UKRA_cnvimg/proc/UKRA_cnvimg.sh ',
+        dag=dag,
+        email_on_failure=False,  # alarm_if_fail: 0
+        doc_md="""
+        **UKRA Convert Images Task**
+        
+        **Purpose:**
+        - Converts images to required format
+        - Processes UKRA images for loading
+        """
+    )
+    
+    # tcUKRA_mail_ldimg - Mail load images notification, depends on cnvimg
+    ukra_mail_ldimg = SSHOperator(
+        task_id=f'{env_pre}cUKRA_mail_ldimg',
+        ssh_conn_id=SSH_CONN_ID,
+        command=f'/{ENV}/LIB/UKRA/UKRA_oper/proc/UKRA_mailldimg.sh',
+        dag=dag,
+        email_on_failure=True,  # alarm_if_fail: 1
+        doc_md="""
+        **UKRA Mail Load Images Task**
+        
+        **Purpose:**
+        - Sends notification email for loaded images
+        - Alerts operators about completed image processing
+        - Final step in images workflow
+        """
+    )
+    
+    # Define dependencies within images TaskGroup
+    ukra_remove_startfile >> ukra_cnvimg >> ukra_mail_ldimg
+
+# File sensor for images processing (triggered by checkforimg) - Represents tfUKRA_images in JIL
+sensor_images_file = SSHOperator(
+    task_id=f'{env_pre}fUKRA_images',
+    ssh_conn_id=SSH_CONN_ID,
+    command=check_file_exists(UKRA_START_IMAGES_FILE),
+    dag=dag,
+    email_on_failure=False,  # alarm_if_fail: 0
+    doc_md="""
+    **UKRA Images File Sensor (tfUKRA_images)**
+    
+    **Purpose:**
+    - Monitors for START_IMAGES file creation by tcUKRA_checkforimg
+    - When images are detected, triggers the UKRA images workflow (tbUKRA_images)
+    - Uses simple SSH test command for file existence
+    - This sensor represents the tfUKRA_images file watcher from the JIL definition
+    
+    **Workflow Connection:**
+    - tcUKRA_checkforimg creates the START_IMAGES file when images are found
+    - This sensor detects the file and succeeds
+    - Success triggers the separate ukra_images_dag to start processing
+    """
+)
+
+# Define main workflow dependencies
+# TRM completion triggers image file sensor
+trm_taskgroup >> sensor_images_file >> images_taskgroup
+
+# Complete workflow:
+# 1. TRM Processing (trm_taskgroup) processes TRM files
+# 2. File sensor (sensor_images_file) waits for START_IMAGES file
+# 3. Images Processing (images_taskgroup) processes images when file detected
