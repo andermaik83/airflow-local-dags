@@ -305,10 +305,12 @@ sensor_images_file = SSHOperator(
 )
 
 # Define main workflow dependencies
-# TRM completion triggers image file sensor
-trm_taskgroup >> sensor_images_file >> images_taskgroup
+# checkforimg creates the START_IMAGES file, which triggers the sensor
+ukra_checkforimg >> sensor_images_file >> images_taskgroup
 
 # Complete workflow:
-# 1. TRM Processing (trm_taskgroup) processes TRM files
-# 2. File sensor (sensor_images_file) waits for START_IMAGES file
-# 3. Images Processing (images_taskgroup) processes images when file detected
+# 1. TRM Processing (trm_taskgroup) starts and branches:
+#    - tcUKRA_checkforimg creates START_IMAGES file → triggers sensor → images workflow
+#    - tcUKRA_trancom → checkforprevBPfiles → mrgtrm → mv2bptrm → mailtrm → cleantrm (continues independently)
+# 2. File sensor (sensor_images_file) detects START_IMAGES file immediately after checkforimg
+# 3. Images Processing (images_taskgroup) processes images in parallel with TRM completion
