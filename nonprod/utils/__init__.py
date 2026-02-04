@@ -8,13 +8,17 @@ Modules:
 - common_utils: SSH command generators and connection utilities
 
 Usage:
-    # Import command generators and connection constants
-    from utils import check_file_exists, SSHConnections
+    # Import command generators and connection resolver
+    from utils import check_file_exists, resolve_connection_id, get_environment_from_path
+    
+    # Resolve connection based on environment
+    env = get_environment_from_path(__file__)
+    ssh_conn = resolve_connection_id(env, 'opr_vl113')
     
     # Use with SSHOperator
     SSHOperator(
         task_id='check_file_exists',
-        ssh_conn_id=SSHConnections.TGEN_VL105,
+        ssh_conn_id=ssh_conn,
         command=check_file_exists('/TEST/SHR/ALBA/work/ALBA_imgissue.par')
     )
 """
