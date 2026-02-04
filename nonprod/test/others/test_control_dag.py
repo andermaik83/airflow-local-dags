@@ -34,14 +34,29 @@ logger = logging.getLogger(__name__)
 
 def print_task_info(task_number, **context):
     """Print task execution info"""
-    ti = context['ti']
-    logger.info("=" * 60)
-    logger.info(f"Task {task_number} is executing!")
-    logger.info(f"DAG: {ti.dag_id}")
-    logger.info(f"Task: {ti.task_id}")
-    logger.info(f"Execution Date: {context['execution_date']}")
-    logger.info("=" * 60)
-    print(f"\n✅ Task {task_number} completed successfully!\n")
+    try:
+        print("=" * 60)
+        print(f"Task {task_number} is executing!")
+        print(f"Task Number: {task_number}")
+        
+        if context:
+            ti = context.get('ti')
+            if ti:
+                print(f"DAG: {ti.dag_id}")
+                print(f"Task: {ti.task_id}")
+            
+            exec_date = context.get('execution_date')
+            if exec_date:
+                print(f"Execution Date: {exec_date}")
+        
+        print("=" * 60)
+        print(f"\n✅ Task {task_number} completed successfully!\n")
+        return f"Task {task_number} executed successfully"
+    except Exception as e:
+        print(f"ERROR in task {task_number}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise
 
 
 # DAG Definition
@@ -112,6 +127,7 @@ task_1 = PythonOperator(
     task_id='task_1',
     python_callable=print_task_info,
     op_kwargs={'task_number': 1},
+    provide_context=True,
     dag=dag,
     doc_md="""
     **Task 1 - Start Task**
@@ -126,6 +142,7 @@ task_1 = PythonOperator(
 task_2 = PythonOperator(
     task_id='task_2',
     python_callable=print_task_info,
+    provide_context=True,
     op_kwargs={'task_number': 2},
     dag=dag,
     doc_md="""
@@ -141,6 +158,7 @@ task_2 = PythonOperator(
 task_3 = PythonOperator(
     task_id='task_3',
     python_callable=print_task_info,
+    provide_context=True,
     op_kwargs={'task_number': 3},
     dag=dag,
     doc_md="""
