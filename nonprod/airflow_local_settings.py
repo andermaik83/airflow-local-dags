@@ -1,8 +1,8 @@
 """
-Airflow Local Settings - Policy Hooks
+Airflow Local Settings - Policy Hooks (NON-PRODUCTION)
 This file is automatically loaded by Airflow to apply global policies.
 
-Place in AIRFLOW__CORE__DAGS_FOLDER or ensure it's in PYTHONPATH.
+Environment: TEST, ACPT
 """
 import logging
 from airflow.models import Variable
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def task_instance_mutation_hook(task_instance):
     """
-    Global policy hook to control task execution via Airflow Variables.
+    NON-PROD policy hook to control task execution via Airflow Variables.
     
     ON HOLD: Prevents task from running (sets to UP_FOR_RESCHEDULE)
     ON ICE: Skips task execution (marks as SKIPPED)
