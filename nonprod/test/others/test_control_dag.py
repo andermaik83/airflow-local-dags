@@ -1,5 +1,5 @@
 """
-Test DAG for ON HOLD / ON ICE Policy Testing
+Test DAG for ON HOLD / ON ICE / Email Alert Policy Testing (Airflow 3.1)
 
 This DAG contains 3 dummy tasks to test the task control policy:
 - Use Variables to add tasks to task_hold_list or task_ice_list
@@ -13,8 +13,9 @@ Test patterns:
 """
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
+# Airflow 3.1 imports
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import PythonOperator
 import logging
 import os
 import sys
@@ -45,9 +46,9 @@ def print_task_info(task_number, **context):
                 print(f"DAG: {ti.dag_id}")
                 print(f"Task: {ti.task_id}")
             
-            exec_date = context.get('execution_date')
-            if exec_date:
-                print(f"Execution Date: {exec_date}")
+            logical_date = context.get('logical_date')
+            if logical_date:
+                print(f"Logical Date: {logical_date}")
         
         print("=" * 60)
         print(f"\n✅ Task {task_number} completed successfully!\n")
@@ -57,6 +58,11 @@ def print_task_info(task_number, **context):
         import traceback
         traceback.print_exc()
         raise
+
+
+def failing_task(**context):
+    """Task that intentionally fails to test email alerts"""
+    raise Exception("Intentional failure to test email alerting!")
 
 
 # DAG Definition
@@ -69,105 +75,93 @@ default_args = {
     'retries': 0,
 }
 
-dag = DAG(
+with DAG(
     dag_id=f'{env_pre}d_test_control',
     default_args=default_args,
-    description='Test DAG for ON HOLD and ON ICE policy validation',
+    description='Test DAG for ON HOLD, ON ICE, and Email Alert policy validation',
     schedule=None,  # Manual trigger only
     catchup=False,
     tags=[env, 'test', 'control-policy'],
     doc_md="""
-    # Task Control Policy Test DAG
+    # Task Control Policy Test DAG (Airflow 3.1)
     
-    This DAG contains 3 dummy tasks to test ON HOLD and ON ICE functionality.
+    This DAG contains tasks to test ON HOLD, ON ICE, and Email Alert functionality.
     
     ## How to Test:
     
     ### Test ON HOLD (Task waits indefinitely):
     ```bash
     # Hold task 1
-    kubectl exec -n airflow-local deployment/airflow-scheduler -- \
+    kubectl exec -n airflow deployment/airflow-scheduler -- \\
       airflow variables set task_hold_list '["td_test_control.task_1"]' --json
     
     # Trigger DAG - task_1 will be held
     # Remove from hold to continue
-    kubectl exec -n airflow-local deployment/airflow-scheduler -- \
+    kubectl exec -n airflow deployment/airflow-scheduler -- \\
       airflow variables set task_hold_list '[]' --json
     ```
     
     ### Test ON ICE (Task skipped):
     ```bash
     # Ice task 3
-    kubectl exec -n airflow-local deployment/airflow-scheduler -- \
+    kubectl exec -n airflow deployment/airflow-scheduler -- \\
       airflow variables set task_ice_list '["td_test_control.task_3"]' --json
     
     # Trigger DAG - task_3 will be skipped
     ```
     
+    ### Test Email Alert (task_fail):
+    ```bash
+    # Set email recipients
+    kubectl exec -n airflow deployment/airflow-scheduler -- \\
+      airflow variables set alert_email_recipients "your@email.com"
+    
+    # Set environment to prod
+    kubectl set env deployment/airflow-worker -n airflow AIRFLOW_ENVIRONMENT=prod
+    
+    # Trigger DAG - task_fail will send email
+    ```
+    
     ### Test Wildcards:
     ```bash
     # Hold all tasks in this DAG
-    kubectl exec -n airflow-local deployment/airflow-scheduler -- \
+    kubectl exec -n airflow deployment/airflow-scheduler -- \\
       airflow variables set task_hold_list '["td_test_control.*"]' --json
     ```
-    
-    ## Expected Behavior:
-    - **ON HOLD**: Task shows as "up_for_reschedule" state, doesn't execute
-    - **ON ICE**: Task shows as "skipped" state, downstream tasks still run
-    
-    ## Check Logs:
-    ```bash
-    kubectl logs -n airflow-local -l component=scheduler --tail=100 | grep "ON HOLD\|ON ICE"
-    ```
     """
-)
+) as dag:
 
-# Task 1 - Start task
-task_1 = PythonOperator(
-    task_id='task_1',
-    python_callable=print_task_info,
-    op_kwargs={'task_number': 1},
-    dag=dag,
-    doc_md="""
-    **Task 1 - Start Task**
-    
-    First task in the sequence. Use this to test ON HOLD behavior.
-    
-    **Test Pattern:** `td_test_control.task_1`
-    """
-)
+    # Task 1 - Start task
+    task_1 = PythonOperator(
+        task_id='task_1',
+        python_callable=print_task_info,
+        op_kwargs={'task_number': 1},
+        doc_md="**Task 1 - Start Task**\n\nTest Pattern: `td_test_control.task_1`"
+    )
 
-# Task 2 - Middle task
-task_2 = PythonOperator(
-    task_id='task_2',
-    python_callable=print_task_info,
-    op_kwargs={'task_number': 2},
-    dag=dag,
-    doc_md="""
-    **Task 2 - Middle Task**
-    
-    Middle task in the sequence. Depends on task_1.
-    
-    **Test Pattern:** `td_test_control.task_2`
-    """
-)
+    # Task 2 - Middle task
+    task_2 = PythonOperator(
+        task_id='task_2',
+        python_callable=print_task_info,
+        op_kwargs={'task_number': 2},
+        doc_md="**Task 2 - Middle Task**\n\nTest Pattern: `td_test_control.task_2`"
+    )
 
-# Task 3 - End task
-task_3 = PythonOperator(
-    task_id='task_3',
-    python_callable=print_task_info,
-    op_kwargs={'task_number': 3},
-    dag=dag,
-    doc_md="""
-    **Task 3 - End Task**
-    
-    Final task in the sequence. Use this to test ON ICE behavior.
-    
-    **Test Pattern:** `td_test_control.task_3`
-    
-    When ON ICE, this task will be skipped but won't block the workflow.
-    """
-)
+    # Task 3 - End task
+    task_3 = PythonOperator(
+        task_id='task_3',
+        python_callable=print_task_info,
+        op_kwargs={'task_number': 3},
+        doc_md="**Task 3 - End Task**\n\nTest Pattern: `td_test_control.task_3`"
+    )
 
-# Simple sequential dependencies
-task_1 >> task_2 >> task_3
+    # Task Fail - For testing email alerts
+    task_fail = PythonOperator(
+        task_id='task_fail',
+        python_callable=failing_task,
+        doc_md="**Task Fail - Email Alert Test**\n\nThis task intentionally fails to test email alerting."
+    )
+
+    # Dependencies
+    task_1 >> task_2 >> task_3
+    task_3 >> task_fail  # task_fail runs after task_3
