@@ -38,7 +38,7 @@ dag = DAG(
     schedule='0 3 * * 2,4,6',  # tu,th,sa at 03:00
     catchup=False,
     max_active_runs=1,
-    tags=[env, app_name,'watchdev']
+    tags=[env, app_name,'wtchdev']
 )
 
 with TaskGroup('tbWTCHdev_Run', dag=dag) as wtchdev_run_group:
