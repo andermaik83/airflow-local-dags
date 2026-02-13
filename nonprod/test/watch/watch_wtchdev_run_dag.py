@@ -32,7 +32,7 @@ WATCH_DEFAULT_ARGS = {
 }
 
 dag = DAG(
-    dag_id=f'{env_pre}d_{app_name}_watchdev_run',
+    dag_id=f'{env_pre}d_{app_name}_wtchdev_run',
     default_args=WATCH_DEFAULT_ARGS,
     description='Device WatchRun workflow',
     schedule='0 3 * * 2,4,6',  # tu,th,sa at 03:00
