@@ -68,6 +68,7 @@ def check_failures(**context):
             timeout=30
         )
         
+        print(f"TaskInstances API raw response: {ti_response.text}")
         if ti_response.ok:
             data = ti_response.json()
             failed_tasks = data.get("task_instances", [])
@@ -88,6 +89,7 @@ def check_failures(**context):
             timeout=30
         )
         
+        print(f"DagRuns API raw response: {dr_response.text}")
         if dr_response.ok:
             data = dr_response.json()
             failed_dags = data.get("dag_runs", [])
