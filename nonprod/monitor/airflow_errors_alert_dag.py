@@ -56,7 +56,7 @@ def check_failures(**context):
     
     try:
         # Query failed task instances
-        ti_url = urljoin(WEBSERVER_URL, "/api/v1/dags/~/dagRuns/~/taskInstances")
+        ti_url = urljoin(WEBSERVER_URL, "/api/v2/dags/~/dagRuns/~/taskInstances")
         ti_response = requests.get(
             ti_url,
             params={
@@ -76,7 +76,7 @@ def check_failures(**context):
             print(f"Task instances API returned {ti_response.status_code}: {ti_response.text}")
         
         # Query failed DAG runs
-        dr_url = urljoin(WEBSERVER_URL, "/api/v1/dags/~/dagRuns")
+        dr_url = urljoin(WEBSERVER_URL, "/api/v2/dags/~/dagRuns")
         dr_response = requests.get(
             dr_url,
             params={
