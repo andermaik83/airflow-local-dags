@@ -3,6 +3,8 @@ from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from datetime import datetime, timedelta
+import os
+import sys
 
 # Add path for importing shared utilities
 sys.path.append(os.path.join(os.path.dirname(__file__), '../../..'))

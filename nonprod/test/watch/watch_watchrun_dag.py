@@ -198,15 +198,17 @@ with TaskGroup(group_id=f'{env_pre}bISS', dag=dag) as iss_group:
     # tfISS_Loaddb_com_inp - File watcher
     iss_loaddb_com_inp = SFTPSensor(
         task_id=f'{env_pre}fISS_Loaddb_com_inp',
-        filepath=f'/{ENV}SHR/ISS/data/ISS_loaddb_com.inp',
         sftp_conn_id=SSH_CONN_ID_2,
+        path=f'/{ENV}SHR/ISS/data/ISS_loaddb_com.inp',
         poke_interval=60,
         timeout=360,
         mode='poke',
+        soft_fail=True,  # Mark as skipped if file not found
         dag=dag,
         doc_md="""
         **Filewatcher voor laadjob com records**
         Watches for ISS_loaddb_com.inp file creation
+        If file not found within timeout, task is skipped (not failed)
         """
     )
 
