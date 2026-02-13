@@ -344,8 +344,7 @@ with TaskGroup(group_id=f'{env_pre}bCRET_Cretext', dag=dag) as cret_cretext_grou
     cret_cretext >> cret_cretext_iss
     cret_cretext >> cret_make_nederlands
     cret_make_nederlands >> cret_make_engels >> cret_make_frans >> cret_mail_files
-    cret_cretext >> cret_upd_iss_pub
-    cret_cretext >> topssrc_complete_cretext
+    # cret_upd_iss_pub and topssrc_complete_cretext are independent jobs
 
 # ====== CTR LOADER PROCESSING (tbCTRldr_load) ======
 # Original Box: tbCTRldr_load with condition: s(tbCOMrec)
