@@ -22,7 +22,7 @@ SSH_CONN_ID_2 = resolve_connection_id(ENV, "opr_vl111")
 SSH_CONN_ID_3 = resolve_connection_id(ENV, "opr_vl113")
 
 # Default arguments
-DEFAULT_ARGS = {
+WATCH_DEFAULT_ARGS = {
     'owner': 'airflow',
     'depends_on_past': False,
     'start_date': datetime(2024, 1, 1),
@@ -32,13 +32,13 @@ DEFAULT_ARGS = {
 }
 
 dag = DAG(
-    dag_id='wtchdev_run',
-    default_args=DEFAULT_ARGS,
+    dag_id=f'{env_pre}d_{app_name}_watchdev_run',
+    default_args=WATCH_DEFAULT_ARGS,
     description='Device WatchRun workflow',
     schedule_interval='0 3 * * 2,4,6',  # tu,th,sa at 03:00
     catchup=False,
     max_active_runs=1,
-    tags=[env, app_name, 'watchdev']
+    tags=[env, app_name,'watchdev']
 )
 
 with TaskGroup('tbWTCHdev_Run', dag=dag) as wtchdev_run_group:
