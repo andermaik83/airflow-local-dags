@@ -6,13 +6,12 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import os
 import sys
-import subprocess
-import shutil
 
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.models import Variable
+from airflow.utils.email import send_email
 
 # Utility import path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
@@ -23,9 +22,8 @@ env = ENV.lower()
 env_pre = env[0]
 
 # Email config (override via Airflow Variables)
-MAIL_FROM = Variable.get("ALERT_MAIL_FROM", default_var="airflow-emea@int.compumark.com")
+MAIL_FROM = Variable.get("ALERT_MAIL_FROM", default_var="airflow-compumark@clarivate.com")
 MAIL_TO = Variable.get("ALERT_MAIL_TO", default_var="ander.lopetegui@clarivate.com").split(",")
-MAIL_BIN = shutil.which("mail") or shutil.which("mailx")
 LOOKBACK_HOURS = int(Variable.get("AIRFLOW_ALERT_LOOKBACK_HOURS", default_var=1))
 
 TZ = "Europe/Brussels"
@@ -163,7 +161,7 @@ def check_failures(**context):
     return {"count": count, "subject": subject, "html": "".join(body)}
 
 def send_email_if_failures(**context):
-    """Send email via system mail command if failures detected."""
+    """Send email via SMTP if failures detected."""
     report = context['ti'].xcom_pull(task_ids=f'{env_pre}g_check_failures')
     
     if not report or report["count"] == 0:
@@ -175,35 +173,13 @@ def send_email_if_failures(**context):
     
     print(f"Failures detected: {report['count']}, sending email to {MAIL_TO}...")
     
-    if MAIL_BIN:
-        # Use mail/mailx with HTML content-type
-        try:
-            subprocess.run(
-                [MAIL_BIN, "-s", subject, "-a", "Content-Type: text/html; charset=UTF-8", *MAIL_TO],
-                input=html,
-                text=True,
-                check=True,
-            )
-            print("Email sent via mail/mailx.")
-        except subprocess.CalledProcessError as e:
-            # Fallback: some mailx don't support -a
-            print(f"mail -a failed ({e}), trying plain mail...")
-            subprocess.run([MAIL_BIN, "-s", subject, *MAIL_TO], input=html, text=True, check=True)
-            print("Email sent via mail (plain).")
-        return
-    
-    # Fallback: sendmail with MIME headers
-    sendmail = shutil.which("sendmail") or "/usr/sbin/sendmail"
-    msg = (
-        f"From: {MAIL_FROM}\n"
-        f"To: {', '.join(MAIL_TO)}\n"
-        f"Subject: {subject}\n"
-        "MIME-Version: 1.0\n"
-        "Content-Type: text/html; charset=UTF-8\n\n"
-        f"{html}"
+    # Use Airflow's send_email utility (uses SMTP config from airflow.cfg)
+    send_email(
+        to=MAIL_TO,
+        subject=subject,
+        html_content=html,
     )
-    subprocess.run([sendmail, "-t"], input=msg, text=True, check=True)
-    print("Email sent via sendmail.")
+    print(f"Email sent via SMTP to {MAIL_TO}")
 
 with DAG(
     dag_id=f'{env_pre}d_airflow_errors_alert',
