@@ -18,6 +18,7 @@ from airflow.providers.standard.operators.empty import EmptyOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
+from airflow.providers.sftp.sensors.sftp import SFTPSensor
 import os
 import sys
 
@@ -192,15 +193,15 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     comrec_validate_xml >> [comrec_def_comfile_db, comrec_statnewtrm]
     [comrec_def_comfile_db, comrec_statnewtrm] >> comrec_mvcomfiles
 
-from airflow.sensors.filesystem import FileSensor
+
 with TaskGroup(group_id=f'{env_pre}bISS', dag=dag) as iss_group:
     # tfISS_Loaddb_com_inp - File watcher
-    iss_loaddb_com_inp = FileSensor(
+    iss_loaddb_com_inp = SFTPSensor(
         task_id=f'{env_pre}fISS_Loaddb_com_inp',
         filepath=f'/{ENV}SHR/ISS/data/ISS_loaddb_com.inp',
-        ssh_conn_id=SSH_CONN_ID_2,
+        sftp_conn_id=SSH_CONN_ID_2,
         poke_interval=60,
-        timeout=3600,
+        timeout=360,
         mode='poke',
         dag=dag,
         doc_md="""
@@ -208,6 +209,7 @@ with TaskGroup(group_id=f'{env_pre}bISS', dag=dag) as iss_group:
         Watches for ISS_loaddb_com.inp file creation
         """
     )
+
     # tcISS_Load_DB_Com - Command job
     iss_load_db_com = SSHOperator(
         task_id=f'{env_pre}cISS_Load_DB_Com',
