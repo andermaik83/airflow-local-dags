@@ -36,6 +36,7 @@ app_name = os.path.basename(os.path.dirname(__file__))
 
 # SSH Connection IDs 
 SSH_CONN_ID = resolve_connection_id(ENV, "opr_vl113")
+SSH_CONN_ID_2 = resolve_connection_id(ENV, "opr_vl102")
 WINRM_CONN_ID = resolve_connection_id(ENV, "opr_vw104")
 
 # Default arguments
@@ -47,13 +48,6 @@ WATCH_DEFAULT_ARGS = {
     'email_on_retry': False,
     'execution_timeout': timedelta(hours=4),
 }
-
-def get_common_tags(application, environment, additional_tags=None):
-    """Generate common tags for DAGs"""
-    tags = [f'{environment.upper()}', application, 'ca-autosys-migration']
-    if additional_tags:
-        tags.extend(additional_tags)
-    return tags
 
 # DAG Definition
 dag = DAG(
@@ -85,7 +79,6 @@ atrium_mvcomfile = SSHOperator(
     """
 )
 
-# ====== COMREC PROCESSING (tbCOMrec) ======
 # Original CA Box: tbCOMrec with condition: s(tcATRIUM_MvComfile)
 with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     
@@ -198,6 +191,157 @@ with TaskGroup(group_id=f'{env_pre}bCOMrec', dag=dag) as comrec_group:
     comrec_bpenricher >> comrec_expand >> comrec_validate_xml
     comrec_validate_xml >> [comrec_def_comfile_db, comrec_statnewtrm]
     [comrec_def_comfile_db, comrec_statnewtrm] >> comrec_mvcomfiles
+
+from airflow.sensors.filesystem import FileSensor
+with TaskGroup(group_id=f'{env_pre}bISS', dag=dag) as iss_group:
+    # tfISS_Loaddb_com_inp - File watcher
+    iss_loaddb_com_inp = FileSensor(
+        task_id=f'{env_pre}fISS_Loaddb_com_inp',
+        filepath=f'/{ENV}SHR/ISS/data/ISS_loaddb_com.inp',
+        ssh_conn_id=SSH_CONN_ID_2,
+        poke_interval=60,
+        timeout=3600,
+        mode='poke',
+        dag=dag,
+        doc_md="""
+        **Filewatcher voor laadjob com records**
+        Watches for ISS_loaddb_com.inp file creation
+        """
+    )
+    # tcISS_Load_DB_Com - Command job
+    iss_load_db_com = SSHOperator(
+        task_id=f'{env_pre}cISS_Load_DB_Com',
+        ssh_conn_id=SSH_CONN_ID,
+        command=f'/{ENV}/LIB/ISS/proc/ISS_Load_DB_Com.sh ',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Load ISS records**
+        Loads ISS records after filewatcher
+        """
+    )
+    iss_loaddb_com_inp >> iss_load_db_com
+
+# ====== CRET CRETEXT PROCESSING (tbCRET_Cretext) ======
+with TaskGroup(group_id=f'{env_pre}bCRET_Cretext', dag=dag) as cret_cretext_group:
+    # tcCRET_Clean_Global_File
+    cret_clean_global_file = SSHOperator(
+        task_id=f'{env_pre}cCRET_Clean_Global_File',
+        ssh_conn_id=SSH_CONN_ID,
+        command=f'/{ENV}/LIB/CRET/proc/CRET_CleanGlobCret.sh ',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Cleanup global cretext file**
+        """
+    )
+    # tcCRET_Del_New
+    cret_del_new = SSHOperator(
+        task_id=f'{env_pre}cCRET_Del_New',
+        ssh_conn_id=SSH_CONN_ID,
+        command='rm -f /TEST/SHR/CRET/data/cretext.new',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Delete daily file**
+        """
+    )
+    # tcCRET_Cretext
+    cret_cretext = SSHOperator(
+        task_id=f'{env_pre}cCRET_Cretext',
+        ssh_conn_id=SSH_CONN_ID,
+        command=f'/{ENV}/LIB/CRET/proc/CRET_Cretext.sh ',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Aanmaken cretext**
+        """
+    )
+    # tcCRET_Cretext_ISS
+    cret_cretext_iss = SSHOperator(
+        task_id=f'{env_pre}cCRET_Cretext_ISS',
+        ssh_conn_id=SSH_CONN_ID,
+        command=f'/{ENV}/LIB/CRET/proc/CRET_Cretext_ISS.sh ',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Aanmaken cretext ISS**
+        """
+    )
+    # tcCRET_Make_Nederlands
+    cret_make_nederlands = SSHOperator(
+        task_id=f'{env_pre}cCRET_Make_Nederlands',
+        ssh_conn_id=SSH_CONN_ID,
+        command=f'/{ENV}/LIB/CRET/proc/CRET_Make_File.sh DU',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Print error file (Nederlands)**
+        """
+    )
+    # tcCRET_Make_Engels
+    cret_make_engels = SSHOperator(
+        task_id=f'{env_pre}cCRET_Make_Engels',
+        ssh_conn_id=SSH_CONN_ID_2,
+        command=f'/{ENV}/LIB/CRET/proc/CRET_Make_File.sh EN',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Print error file (Engels)**
+        """
+    )
+    # tcCRET_Make_Frans
+    cret_make_frans = SSHOperator(
+        task_id=f'{env_pre}cCRET_Make_Frans',
+        ssh_conn_id=SSH_CONN_ID_2,
+        command=f'/{ENV}/LIB/CRET/proc/CRET_Make_File.sh FR',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Print error file (Frans)**
+        """
+    )
+    # tcCRET_Mail_Files
+    cret_mail_files = SSHOperator(
+        task_id=f'{env_pre}cCRET_Mail_Files',
+        ssh_conn_id=SSH_CONN_ID_2,
+        command=f'/{ENV}/LIB/CRET/proc/CRET_Mail_Files.sh ',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Mail cretext files**
+        """
+    )
+    # tcCRET_Upd_ISS_Pub
+    cret_upd_iss_pub = SSHOperator(
+        task_id=f'{env_pre}cCRET_Upd_ISS_Pub',
+        ssh_conn_id=SSH_CONN_ID_2,
+        command=f'/{ENV}/LIB/CRET/proc/CRET_UpdISSPub.sh ',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **Insert publication date in DB**
+        """
+    )
+    # tcTOPSsrc_complete_cretext
+    topssrc_complete_cretext = SSHOperator(
+        task_id=f'{env_pre}cTOPSsrc_complete_cretext',
+        ssh_conn_id=SSH_CONN_ID_2,
+        command=f'/{ENV}/LIB/TOPSsrc/proc/TOPSsrc_complete_cretext.sh ',
+        dag=dag,
+        email_on_failure=True,
+        doc_md="""
+        **TOPSsrc complete cretext**
+        """
+    )
+    # Set dependencies as per JIL
+    cret_clean_global_file >> cret_cretext
+    cret_del_new >> cret_cretext
+    cret_cretext >> cret_cretext_iss
+    cret_cretext >> cret_make_nederlands
+    cret_make_nederlands >> cret_make_engels >> cret_make_frans >> cret_mail_files
+    cret_cretext >> cret_upd_iss_pub
+    cret_cretext >> topssrc_complete_cretext
 
 # ====== CTR LOADER PROCESSING (tbCTRldr_load) ======
 # Original Box: tbCTRldr_load with condition: s(tbCOMrec)
@@ -557,8 +701,13 @@ with TaskGroup(group_id=f'{env_pre}bWTCHwrd_SetOrd2P', dag=dag) as wtchwrd_manua
 # ====== MAIN WORKFLOW DEPENDENCIES ======
 # Based on the complex dependency structure from the JIL file:
 
+
 # 0. Initial trigger - ATRIUM MvComfile starts the entire workflow
 atrium_mvcomfile >> comrec_group
+
+# tbISS and tbCRET_Cretext depend on tbCOMrec
+comrec_group >> iss_group
+comrec_group >> cret_cretext_group
 
 # 1. COMrec processing triggers multiple downstream processes
 # Original conditions: s(tbCOMrec)
