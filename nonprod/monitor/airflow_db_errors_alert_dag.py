@@ -23,7 +23,7 @@ def _html_escape(s: str) -> str:
     return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 def check_failures(**context):
-    from airflow.hooks.http_hook import HttpHook
+    from airflow.providers.http.hooks.http import HttpHook
     cutoff = datetime.utcnow() - timedelta(hours=LOOKBACK_HOURS)
     cutoff_iso = cutoff.isoformat() + "Z"
     failed_tasks = []
