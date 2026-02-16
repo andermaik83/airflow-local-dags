@@ -62,7 +62,7 @@ def check_failures(**context):
         token_payload = {"username": airflow_user, "password": airflow_pass}
         token_headers = {"Content-Type": "application/json"}
         token_resp = requests.post(token_url, json=token_payload, headers=token_headers, timeout=10)
-        if token_resp.status_code != 200:
+        if token_resp.status_code not in (200, 201):
             print(f"Failed to get JWT token: {token_resp.status_code} {token_resp.text}")
             return None
         token = token_resp.json().get("access_token") or token_resp.json().get("token")
