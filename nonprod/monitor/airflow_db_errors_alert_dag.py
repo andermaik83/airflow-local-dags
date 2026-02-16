@@ -26,87 +26,56 @@ def check_failures(**context):
     from airflow.providers.http.hooks.http import HttpHook
     cutoff = datetime.utcnow() - timedelta(hours=LOOKBACK_HOURS)
     cutoff_iso = cutoff.isoformat() + "Z"
-    failed_tasks = []
     failed_dags = []
     try:
         http = HttpHook(method='GET', http_conn_id='airflow_api')
         params = {
-            "state": "failed",
             "end_date_gte": cutoff_iso,
             "limit": 100,
             "order_by": "-end_date"
         }
-        ti_response = http.run('/api/v2/taskInstances', data=params)
-        print(f"TaskInstances API raw response: {ti_response.text}")
-        if ti_response.status_code == 200:
-            data = ti_response.json()
-            failed_tasks = data.get("task_instances", [])
-            print(f"Found {len(failed_tasks)} failed task instances")
+        dagstats_url = '/api/v2/dagStats'
+        print(f"Calling DagStats API: {http.base_url}{dagstats_url}")
+        response = http.run(dagstats_url, data=params)
+        print(f"DagStats API raw response: {response.text}")
+        if response.status_code == 200:
+            data = response.json()
+            for dag in data.get("dags", []):
+                for stat in dag.get("stats", []):
+                    if stat.get("state") == "failed" and stat.get("count", 0) > 0:
+                        failed_dags.append({
+                            "dag_id": dag.get("dag_id"),
+                            "dag_display_name": dag.get("dag_display_name"),
+                            "failed_count": stat.get("count")
+                        })
+            print(f"Found {len(failed_dags)} DAGs with failures")
         else:
-            print(f"Task instances API returned {ti_response.status_code}: {ti_response.text}")
-
-        dr_response = http.run('/api/v2/dagRuns', data=params)
-        print(f"DagRuns API raw response: {dr_response.text}")
-        if dr_response.status_code == 200:
-            data = dr_response.json()
-            failed_dags = data.get("dag_runs", [])
-            print(f"Found {len(failed_dags)} failed DAG runs")
-        else:
-            print(f"DAG runs API returned {dr_response.status_code}: {dr_response.text}")
+            print(f"DagStats API returned {response.status_code}: {response.text}")
     except Exception as e:
         print(f"Error querying Airflow API: {e}")
         import traceback
         traceback.print_exc()
-    if not failed_tasks and not failed_dags:
+    if not failed_dags:
         print(f"No failures detected in the last {LOOKBACK_HOURS} hour(s).")
         return None
     body = [
         f"<h2>Airflow Failures Report - {ENV} Environment</h2>",
         f"<p><strong>Time Range:</strong> Last {LOOKBACK_HOURS} hour(s) ending {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC</p>"
     ]
-    if failed_tasks:
-        body.append(f"<h3>Failed Tasks ({len(failed_tasks)}):</h3>")
-        body.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>")
-        body.append("<tr style='background-color: #f0f0f0;'><th>DAG ID</th><th>Task ID</th><th>Run ID</th><th>End Time</th><th>Try Number</th><th>Duration</th></tr>")
-        for ti in failed_tasks:
-            start = ti.get("start_date")
-            end = ti.get("end_date")
-            dur = None
-            if start and end:
-                try:
-                    from datetime import datetime as dt
-                    start_dt = dt.fromisoformat(start.replace('Z', '+00:00'))
-                    end_dt = dt.fromisoformat(end.replace('Z', '+00:00'))
-                    dur = f"{(end_dt - start_dt).total_seconds():.1f}s"
-                except:
-                    pass
-            body.append(
-                f"<tr>"
-                f"<td><strong>{_html_escape(ti.get('dag_id', 'N/A'))}</strong></td>"
-                f"<td>{_html_escape(ti.get('task_id', 'N/A'))}</td>"
-                f"<td style='font-size: 0.85em;'>{_html_escape(ti.get('dag_run_id', 'N/A'))}</td>"
-                f"<td>{end or 'N/A'}</td>"
-                f"<td>{ti.get('try_number', 'N/A')}</td>"
-                f"<td>{dur or 'N/A'}</td>"
-                f"</tr>"
-            )
-        body.append("</table>")
-    if failed_dags:
-        body.append(f"<h3>Failed DAG Runs ({len(failed_dags)}):</h3>")
-        body.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>")
-        body.append("<tr style='background-color: #f0f0f0;'><th>DAG ID</th><th>Run ID</th><th>Execution Date</th><th>End Time</th></tr>")
-        for dr in failed_dags:
-            body.append(
-                f"<tr>"
-                f"<td><strong>{_html_escape(dr.get('dag_id', 'N/A'))}</strong></td>"
-                f"<td style='font-size: 0.85em;'>{_html_escape(dr.get('dag_run_id', 'N/A'))}</td>"
-                f"<td>{dr.get('execution_date', 'N/A')}</td>"
-                f"<td>{dr.get('end_date', 'N/A')}</td>"
-                f"</tr>"
-            )
-        body.append("</table>")
+    body.append(f"<h3>Failed DAGs ({len(failed_dags)}):</h3>")
+    body.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>")
+    body.append("<tr style='background-color: #f0f0f0;'><th>DAG ID</th><th>Display Name</th><th>Failed Count</th></tr>")
+    for dag in failed_dags:
+        body.append(
+            f"<tr>"
+            f"<td><strong>{_html_escape(dag.get('dag_id', 'N/A'))}</strong></td>"
+            f"<td>{_html_escape(dag.get('dag_display_name', 'N/A'))}</td>"
+            f"<td>{dag.get('failed_count', 0)}</td>"
+            f"</tr>"
+        )
+    body.append("</table>")
     body.append("<br><p><em>This is an automated report from Airflow failure monitoring.</em></p>")
-    count = len(failed_tasks) + len(failed_dags)
+    count = len(failed_dags)
     subject = f"[{ENV}] Airflow Failures: {count} in last {LOOKBACK_HOURS}h"
     return {"count": count, "subject": subject, "html": "".join(body)}
 
