@@ -11,6 +11,7 @@ from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.models import Variable
+
 from airflow.utils.email import send_email
 
 # Utility import path
@@ -170,12 +171,11 @@ def send_email_if_failures(**context):
     html = report["html"]
     
     print(f"Failures detected: {report['count']}, sending email to {MAIL_TO}...")
-    
-    # Use Airflow's send_email utility (uses SMTP config from airflow.cfg)
     send_email(
         to=MAIL_TO,
         subject=subject,
         html_content=html,
+        from_email=MAIL_FROM
     )
     print(f"Email sent via SMTP to {MAIL_TO}")
 
