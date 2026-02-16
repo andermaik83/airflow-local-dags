@@ -55,6 +55,22 @@ def check_failures(**context):
     failed_dags = []
     
     try:
+        # Step 1: Get JWT token
+        token_url = urljoin(WEBSERVER_URL, "/auth/token")
+        airflow_user = os.getenv("AIRFLOW_API_USER", "admin")
+        airflow_pass = os.getenv("AIRFLOW_API_PASSWORD", "admin")
+        token_payload = {"username": airflow_user, "password": airflow_pass}
+        token_headers = {"Content-Type": "application/json"}
+        token_resp = requests.post(token_url, json=token_payload, headers=token_headers, timeout=10)
+        if token_resp.status_code != 200:
+            print(f"Failed to get JWT token: {token_resp.status_code} {token_resp.text}")
+            return None
+        token = token_resp.json().get("access_token") or token_resp.json().get("token")
+        if not token:
+            print(f"No access_token in response: {token_resp.text}")
+            return None
+        headers = {"Authorization": f"Bearer {token}"}
+
         # Query failed task instances
         ti_url = urljoin(WEBSERVER_URL, "/api/v2/dags/~/dagRuns/~/taskInstances")
         ti_response = requests.get(
@@ -65,9 +81,9 @@ def check_failures(**context):
                 "limit": 100,
                 "order_by": "-end_date"
             },
+            headers=headers,
             timeout=30
         )
-        
         print(f"TaskInstances API raw response: {ti_response.text}")
         if ti_response.ok:
             data = ti_response.json()
@@ -75,7 +91,7 @@ def check_failures(**context):
             print(f"Found {len(failed_tasks)} failed task instances")
         else:
             print(f"Task instances API returned {ti_response.status_code}: {ti_response.text}")
-        
+
         # Query failed DAG runs
         dr_url = urljoin(WEBSERVER_URL, "/api/v2/dags/~/dagRuns")
         dr_response = requests.get(
@@ -86,9 +102,9 @@ def check_failures(**context):
                 "limit": 100,
                 "order_by": "-end_date"
             },
+            headers=headers,
             timeout=30
         )
-        
         print(f"DagRuns API raw response: {dr_response.text}")
         if dr_response.ok:
             data = dr_response.json()
@@ -96,7 +112,6 @@ def check_failures(**context):
             print(f"Found {len(failed_dags)} failed DAG runs")
         else:
             print(f"DAG runs API returned {dr_response.status_code}: {dr_response.text}")
-            
     except Exception as e:
         print(f"Error querying Airflow API: {e}")
         import traceback
