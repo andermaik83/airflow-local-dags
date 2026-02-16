@@ -174,8 +174,7 @@ def send_email_if_failures(**context):
     send_email(
         to=MAIL_TO,
         subject=subject,
-        html_content=html,
-        from_email=MAIL_FROM
+        html_content=html
     )
     print(f"Email sent via SMTP to {MAIL_TO}")
 
