@@ -71,47 +71,28 @@ def check_failures(**context):
             return None
         headers = {"Authorization": f"Bearer {token}"}
 
-        # Query failed task instances
-        ti_url = urljoin(WEBSERVER_URL, "/api/v2/dags/~/dagRuns/~/taskInstances")
-        ti_response = requests.get(
-            ti_url,
-            params={
-                "state": "failed",
-                "end_date_gte": cutoff_iso,
-                "limit": 100,
-                "order_by": "-end_date"
-            },
+        # Query DAG stats for failed DAGs
+        dagstats_url = urljoin(WEBSERVER_URL, "/api/v2/dagStats")
+        dagstats_response = requests.get(
+            dagstats_url,
             headers=headers,
             timeout=30
         )
-        print(f"TaskInstances API raw response: {ti_response.text}")
-        if ti_response.ok:
-            data = ti_response.json()
-            failed_tasks = data.get("task_instances", [])
-            print(f"Found {len(failed_tasks)} failed task instances")
+        print(f"DagStats API raw response: {dagstats_response.text}")
+        failed_dags = []
+        if dagstats_response.ok:
+            data = dagstats_response.json()
+            for dag in data.get("dags", []):
+                for stat in dag.get("stats", []):
+                    if stat.get("state") == "failed" and stat.get("count", 0) > 0:
+                        failed_dags.append({
+                            "dag_id": dag.get("dag_id"),
+                            "dag_display_name": dag.get("dag_display_name"),
+                            "failed_count": stat.get("count")
+                        })
+            print(f"Found {len(failed_dags)} DAGs with failures")
         else:
-            print(f"Task instances API returned {ti_response.status_code}: {ti_response.text}")
-
-        # Query failed DAG runs
-        dr_url = urljoin(WEBSERVER_URL, "/api/v2/dags/~/dagRuns")
-        dr_response = requests.get(
-            dr_url,
-            params={
-                "state": "failed",
-                "end_date_gte": cutoff_iso,
-                "limit": 100,
-                "order_by": "-end_date"
-            },
-            headers=headers,
-            timeout=30
-        )
-        print(f"DagRuns API raw response: {dr_response.text}")
-        if dr_response.ok:
-            data = dr_response.json()
-            failed_dags = data.get("dag_runs", [])
-            print(f"Found {len(failed_dags)} failed DAG runs")
-        else:
-            print(f"DAG runs API returned {dr_response.status_code}: {dr_response.text}")
+            print(f"DagStats API returned {dagstats_response.status_code}: {dagstats_response.text}")
     except Exception as e:
         print(f"Error querying Airflow API: {e}")
         import traceback
