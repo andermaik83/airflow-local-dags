@@ -161,6 +161,9 @@ def check_failures(**context):
 
 def send_email_if_failures(**context):
     """Send email via SMTP if failures detected."""
+    print("++++++++++++++++")
+    print(f"mail to: {MAIL_TO}")
+    print(f"mail from: {MAIL_FROM}")
     report = context['ti'].xcom_pull(task_ids=f'{env_pre}g_check_failures')
     
     if not report or report["count"] == 0:
