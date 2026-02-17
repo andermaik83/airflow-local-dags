@@ -45,11 +45,9 @@ def _html_escape(s: str) -> str:
     return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 def check_failures(**context):
-    """Query Airflow REST API for failed tasks/DAGs in the lookback window."""
+    """Query Airflow REST API for active DAGs whose last run failed."""
     import requests
-    from urllib.parse import urljoin
-    cutoff = datetime.utcnow() - timedelta(hours=LOOKBACK_HOURS)
-    cutoff_iso = cutoff.isoformat() + "Z"
+    from urllib.parse import urljoin, urlencode
     try:
         # Step 1: Get JWT token
         token_url = urljoin(WEBSERVER_URL, "/auth/token")
@@ -67,35 +65,30 @@ def check_failures(**context):
             return None
         headers = {"Authorization": f"Bearer {token}"}
 
-        # Step 2: Get all active DAGs
-        dags_url = urljoin(WEBSERVER_URL, "/api/v2/dags?only_active=true")
+        # Step 2: Query DAGs whose last run failed, not paused, not stale
+        params = {
+            "last_dag_run_state": "failed",
+            "exclude_stale": "true",
+            "paused": "false",
+            "limit": 1000
+        }
+        dags_url = urljoin(WEBSERVER_URL, f"/api/v2/dags?{urlencode(params)}")
         dags_response = requests.get(dags_url, headers=headers, timeout=30)
         if not dags_response.ok:
             print(f"DAGs API returned {dags_response.status_code}: {dags_response.text}")
             return None
         dags_data = dags_response.json()
-        active_dags = [d for d in dags_data.get("dags", []) if d.get("is_paused") is False and d.get("is_active") is True]
-
         failed_dags = []
-        for dag in active_dags:
+        for dag in dags_data.get("dags", []):
             dag_id = dag.get("dag_id")
-            # Get the last dag run for this dag
-            dagruns_url = urljoin(WEBSERVER_URL, f"/api/v2/dags/{dag_id}/dagRuns?order_by=-execution_date&limit=1")
-            dagruns_response = requests.get(dagruns_url, headers=headers, timeout=30)
-            if not dagruns_response.ok:
-                print(f"DagRuns API for {dag_id} returned {dagruns_response.status_code}: {dagruns_response.text}")
-                continue
-            dagruns_data = dagruns_response.json()
-            dag_runs = dagruns_data.get("dag_runs", [])
-            if dag_runs:
-                last_run = dag_runs[0]
-                if last_run.get("state") == "failed":
-                    failed_dags.append({
-                        "dag_id": dag_id,
-                        "dag_run_id": last_run.get("dag_run_id"),
-                        "execution_date": last_run.get("execution_date"),
-                        "end_date": last_run.get("end_date")
-                    })
+            last_run_state = dag.get("last_run_state")
+            last_run_start_date = dag.get("last_run_start_date")
+            # Optionally, get more details if available
+            failed_dags.append({
+                "dag_id": dag_id,
+                "last_run_state": last_run_state,
+                "last_run_start_date": last_run_start_date
+            })
         if not failed_dags:
             print(f"No active DAGs with last run failed in the last {LOOKBACK_HOURS} hour(s).")
             return None
@@ -107,14 +100,13 @@ def check_failures(**context):
         ]
         body.append(f"<h3>Active DAGs with Last Run Failed ({len(failed_dags)}):</h3>")
         body.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>")
-        body.append("<tr style='background-color: #f0f0f0;'><th>DAG ID</th><th>Run ID</th><th>Execution Date</th><th>End Time</th></tr>")
+        body.append("<tr style='background-color: #f0f0f0;'><th>DAG ID</th><th>Last Run State</th><th>Last Run Start Date</th></tr>")
         for dr in failed_dags:
             body.append(
                 f"<tr>"
                 f"<td><strong>{_html_escape(dr.get('dag_id', 'N/A'))}</strong></td>"
-                f"<td style='font-size: 0.85em;'>{_html_escape(dr.get('dag_run_id', 'N/A'))}</td>"
-                f"<td>{dr.get('execution_date', 'N/A')}</td>"
-                f"<td>{dr.get('end_date', 'N/A')}</td>"
+                f"<td>{_html_escape(str(dr.get('last_run_state', 'N/A')))}</td>"
+                f"<td>{dr.get('last_run_start_date', 'N/A')}</td>"
                 f"</tr>"
             )
         body.append("</table>")
