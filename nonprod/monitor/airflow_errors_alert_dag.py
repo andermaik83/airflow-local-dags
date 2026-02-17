@@ -81,14 +81,15 @@ def check_failures(**context):
         failed_dags = []
         for dag in dags_data.get("dags", []):
             dag_id = dag.get("dag_id")
-            last_run_state = dag.get("last_run_state")
-            last_run_start_date = dag.get("last_run_start_date")
-            # Optionally, get more details if available
-            failed_dags.append({
-                "dag_id": dag_id,
-                "last_run_state": last_run_state,
-                "last_run_start_date": last_run_start_date
-            })
+            last_parsed_time = dag.get("last_parsed_time")
+            last_parse_duration = dag.get("last_parse_duration")
+            # Only include if last_parsed_time is not None
+            if last_parsed_time:
+                failed_dags.append({
+                    "dag_id": dag_id,
+                    "last_parsed_time": last_parsed_time,
+                    "last_parse_duration": last_parse_duration
+                })
         if not failed_dags:
             print(f"No active DAGs with last run failed in the last {LOOKBACK_HOURS} hour(s).")
             return None
@@ -100,13 +101,15 @@ def check_failures(**context):
         ]
         body.append(f"<h3>Active DAGs with Last Run Failed ({len(failed_dags)}):</h3>")
         body.append("<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>")
-        body.append("<tr style='background-color: #f0f0f0;'><th>DAG ID</th><th>Last Run State</th><th>Last Run Start Date</th></tr>")
+        body.append("<tr style='background-color: #f0f0f0;'><th>DAG ID</th><th>Last Run State</th><th>Last Run Start Date</th><th>Last Parsed Time</th><th>Last Parse Duration (s)</th></tr>")
         for dr in failed_dags:
             body.append(
                 f"<tr>"
                 f"<td><strong>{_html_escape(dr.get('dag_id', 'N/A'))}</strong></td>"
                 f"<td>{_html_escape(str(dr.get('last_run_state', 'N/A')))}</td>"
                 f"<td>{dr.get('last_run_start_date', 'N/A')}</td>"
+                f"<td>{dr.get('last_parsed_time', 'N/A')}</td>"
+                f"<td>{dr.get('last_parse_duration', 'N/A')}</td>"
                 f"</tr>"
             )
         body.append("</table>")
