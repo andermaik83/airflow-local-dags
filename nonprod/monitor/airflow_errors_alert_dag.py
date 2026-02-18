@@ -16,6 +16,7 @@ from airflow.hooks.base import BaseHook
 import json
 
 from airflow.utils.email import send_email
+from airflow.settings import Session
 
 # Utility import path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
@@ -145,14 +146,16 @@ def send_email_if_failures(**context):
     failed_dags = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures', key='failed_dags_list')
     # Retrieve prev_failed_dags from previous DAG run (not current execution)
     from airflow.models.xcom import XCom
-    prev_failed_dags = XCom.get_one(
-        execution_date=None,  # None means previous execution
-        dag_id=ti.dag_id,
-        task_id=ti.task_id,
-        key='prev_failed_dags_list',
-        include_prior_dates=True,
-        session=ti.get_session()
-    )
+    prev_failed_dags = None
+    with Session() as session:
+        prev_failed_dags = XCom.get_one(
+            execution_date=None,  # None means previous execution
+            dag_id=ti.dag_id,
+            task_id=ti.task_id,
+            key='prev_failed_dags_list',
+            include_prior_dates=True,
+            session=session
+        )
     # Compare current and previous failed_dags lists
     print(f"Current failed_dags: {failed_dags}")
     print(f"Previous failed_dags: {prev_failed_dags}")
