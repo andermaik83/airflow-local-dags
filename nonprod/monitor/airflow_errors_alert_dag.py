@@ -159,6 +159,7 @@ def get_prev_failed_dags_via_api(ti, api_host, headers):
             print(f"Checking dag_run_id: {dr.get('dag_run_id')}")
             print(f"current_run_id: {current_run_id}")
             if dr.get("dag_run_id") != current_run_id:
+                print(f"Found previous run_id: {dr.get('dag_run_id')}")
                 prev_run_id = dr.get("dag_run_id")
                 break
         print("!!2222")
