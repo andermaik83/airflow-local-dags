@@ -146,6 +146,8 @@ def send_email_if_failures(**context):
     prev_failed_dags = ti.xcom_pull(task_ids=None, key='prev_failed_dags_list')
     # Compare current and previous failed_dags lists
     print("!!!!!!!!!!!!!!!!!")
+    print(f"Current failed_dags: {failed_dags}")
+    print(f"Previous failed_dags: {prev_failed_dags}")
     if failed_dags is not None and prev_failed_dags is not None:
         print ("Comparing current and previous failed DAGs lists for change detection...")
         json1=json.dumps(failed_dags, sort_keys=True)
