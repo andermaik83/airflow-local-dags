@@ -143,9 +143,17 @@ def send_email_if_failures(**context):
     ti = context['ti']
     report = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures')
     failed_dags = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures', key='failed_dags_list')
-    prev_failed_dags = ti.xcom_pull(task_ids=None, key='prev_failed_dags_list')
+    # Retrieve prev_failed_dags from previous DAG run (not current execution)
+    from airflow.models.xcom import XCom
+    prev_failed_dags = XCom.get_one(
+        execution_date=None,  # None means previous execution
+        dag_id=ti.dag_id,
+        task_id=ti.task_id,
+        key='prev_failed_dags_list',
+        include_prior_dates=True,
+        session=ti.get_session()
+    )
     # Compare current and previous failed_dags lists
-    print("!!!!!!!!!!!!!!!!!")
     print(f"Current failed_dags: {failed_dags}")
     print(f"Previous failed_dags: {prev_failed_dags}")
     if failed_dags is not None and prev_failed_dags is not None:
@@ -154,7 +162,7 @@ def send_email_if_failures(**context):
         json2=json.dumps(prev_failed_dags, sort_keys=True)
         print(f"failed dags 1: {json1}")
         print(f"failed dags 2: {json2}")
-        if json.dumps(failed_dags, sort_keys=True) == json.dumps(prev_failed_dags, sort_keys=True):
+        if json1 == json2:
             print("No change in failed DAGs list, skipping email.")
             return
     # Store current failed_dags as previous for next run
