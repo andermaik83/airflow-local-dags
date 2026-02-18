@@ -105,8 +105,7 @@ def check_failures(**context):
                     "last_parsed_time": last_parsed_time,
                     "last_parse_duration": last_parse_duration
                 })
-        # Store failed_dags in XCom for change detection
-        context['ti'].xcom_push(key='failed_dags_list', value=failed_dags)
+
         if not failed_dags:
             print("No active DAGs with last run failed.")
             return None
@@ -183,6 +182,9 @@ def send_email_if_failures(**context):
     ti = context['ti']
     report = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures')
     failed_dags = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures', key='failed_dags_list')
+    # Store current failed_dags as previous for next run
+    ti.xcom_push(key='failed_dags_list', value=failed_dags)
+
     # Get API connection details and token headers once
     api_host, airflow_user, airflow_pass, _ = get_airflow_api_auth()
     headers = get_airflow_api_token(api_host, airflow_user, airflow_pass)
@@ -198,8 +200,7 @@ def send_email_if_failures(**context):
         if current_ids == prev_ids:
             print("No change in failed DAG IDs, skipping email.")
             return
-    # Store current failed_dags as previous for next run
-    ti.xcom_push(key='failed_dags_list', value=failed_dags)
+
     if not report or report.get("count", 0) == 0:
         print("No failures to report, skipping email.")
         return
