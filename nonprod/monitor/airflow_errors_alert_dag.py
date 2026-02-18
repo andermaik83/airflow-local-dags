@@ -7,16 +7,14 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import os
 import sys
+import requests
 
 from airflow import DAG
 from airflow.providers.standard.operators.python import PythonOperator
 from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.models import Variable
 from airflow.hooks.base import BaseHook
-import json
-
 from airflow.utils.email import send_email
-from airflow.settings import Session
 
 # Utility import path
 sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
@@ -29,7 +27,6 @@ env_pre = env[0]
 # Email config (override via Airflow Variables)
 MAIL_FROM = Variable.get("ALERT_MAIL_FROM", default_var="airflow-compumark@clarivate.com")
 MAIL_TO = Variable.get("ALERT_MAIL_TO", default_var="ander.lopetegui@clarivate.com").split(",")
-LOOKBACK_HOURS = int(Variable.get("AIRFLOW_ALERT_LOOKBACK_HOURS", default_var=1))
 
 TZ = "Europe/Brussels"
 # Use Kubernetes service name when running in-cluster
@@ -59,7 +56,7 @@ def get_airflow_api_auth():
 
 def get_airflow_api_token(api_host, airflow_user, airflow_pass):
     """Obtain JWT token for Airflow API and return headers dict."""
-    import requests
+
     from urllib.parse import urljoin
     token_url = urljoin(api_host, "/auth/token")
     token_payload = {"username": airflow_user, "password": airflow_pass}
@@ -74,7 +71,6 @@ def get_airflow_api_token(api_host, airflow_user, airflow_pass):
 
 def check_failures(**context):
     """Query Airflow REST API for active DAGs whose last run failed. Store result in XCom."""
-    import requests
     from urllib.parse import urljoin, urlencode
     try:
         # Get API connection details
@@ -141,30 +137,22 @@ def check_failures(**context):
 
 def get_prev_failed_dags_via_api(ti, api_host, headers):
     """Fetch failed_dags_list XCom from previous DAG run using Airflow REST API."""
-    import requests
     from urllib.parse import urljoin
     try:
         # Step 2: Get previous dag_run_id (not current)
         dag_id = ti.dag_id        
         current_run_id = ti.run_id
         task_id = f'{env_pre}g_check_failures'
-        print(f"dag_id: {dag_id}, task_id: {task_id}, current_run_id: {current_run_id}")
+
         dagruns_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns?order_by=-start_date&limit=2")
-        print(f"dag_runs: {dagruns_url}")
         dagruns_resp = requests.get(dagruns_url, headers=headers, timeout=30)
-        print(f"dagruns_resp: {dagruns_resp}")
         dagruns = dagruns_resp.json().get("dag_runs", [])
         prev_run_id = None
-        print(f"dagrunsd: {dagruns}")
-        print("!!!1111")
         for dr in dagruns:
-            print(f"Checking dag_run_id: {dr.get('dag_run_id')}")
-            print(f"current_run_id: {current_run_id}")
             if dr.get("dag_run_id") != current_run_id:
-                print(f"Found previous run_id: {dr.get('dag_run_id')}")
                 prev_run_id = dr.get("dag_run_id")
                 break
-        print("!!2222")
+
         if prev_run_id:
             xcom_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns/{prev_run_id}/taskInstances/{task_id}/xcomEntries/failed_dags_list?deserialize=true")
             print(f"Fetching previous failed_dags XCom via API: {xcom_url}")
@@ -191,13 +179,10 @@ def send_email_if_failures(**context):
     headers = get_airflow_api_token(api_host, airflow_user, airflow_pass)
     prev_failed_dags = get_prev_failed_dags_via_api(ti, api_host, headers)
     # Compare only dag_id sets for change detection
-    print(f"Current failed_dags: {failed_dags}")
-    print(f"Previous failed_dags: {prev_failed_dags}")
+
     if failed_dags is not None and prev_failed_dags is not None:
         current_ids = set(d['dag_id'] for d in failed_dags if 'dag_id' in d)
         prev_ids = set(d['dag_id'] for d in prev_failed_dags if 'dag_id' in d)
-        print(f"Current dag_ids: {current_ids}")
-        print(f"Previous dag_ids: {prev_ids}")
         if current_ids == prev_ids:
             print("No change in failed DAG IDs, skipping email.")
             return
