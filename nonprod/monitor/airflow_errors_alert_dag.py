@@ -156,6 +156,8 @@ def get_prev_failed_dags_via_api(ti, api_host, headers):
         print(f"dagrunsd: {dagruns}")
         print("!!!1111")
         for dr in dagruns:
+            print(f"Checking dag_run_id: {dr.get('dag_run_id')}")
+            print(f"current_run_id: {current_run_id}")
             if dr.get("dag_run_id") != current_run_id:
                 prev_run_id = dr.get("dag_run_id")
                 break
@@ -187,8 +189,6 @@ def send_email_if_failures(**context):
     # Compare only dag_id sets for change detection
     print(f"Current failed_dags: {failed_dags}")
     print(f"Previous failed_dags: {prev_failed_dags}")
-    print(f"Current dag_ids: {current_ids}")
-    print(f"Previous dag_ids: {prev_ids}")
     if failed_dags is not None and prev_failed_dags is not None:
         current_ids = set(d['dag_id'] for d in failed_dags if 'dag_id' in d)
         prev_ids = set(d['dag_id'] for d in prev_failed_dags if 'dag_id' in d)
