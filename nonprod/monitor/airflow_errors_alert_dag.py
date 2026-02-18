@@ -152,6 +152,7 @@ def get_prev_failed_dags_via_api(ti, api_host, headers):
         print(f"dagruns_resp: {dagruns_resp}")
         dagruns = dagruns_resp.json().get("dag_runs", [])
         prev_run_id = None
+        print(f"dagrunsd: {dagruns}")
         print("!!!1111")
         for dr in dagruns:
             if dr.get("run_id") != current_run_id:
