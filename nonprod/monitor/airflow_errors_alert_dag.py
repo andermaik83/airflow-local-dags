@@ -150,15 +150,19 @@ def get_prev_failed_dags_via_api(ti, api_host, headers):
         dagruns_resp = requests.get(dagruns_url, headers=headers, timeout=30)
         dagruns = dagruns_resp.json().get("dag_runs", [])
         prev_run_id = None
+        print("!!!1111")
         for dr in dagruns:
             if dr.get("run_id") != current_run_id:
                 prev_run_id = dr.get("run_id")
                 break
+        print("!!2222")
         if prev_run_id:
             xcom_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns/{prev_run_id}/taskInstances/{task_id}/xcomEntries/prev_failed_dags_list?deserialize=true")
+            print(f"Fetching previous failed_dags XCom via API: {xcom_url}")
             xcom_resp = requests.get(xcom_url, headers=headers, timeout=10)
+            print(f"Previous failed_dags XCom API response: {xcom_resp.text}")
             if xcom_resp.ok:
-                print(f"Previous failed_dags XCom API response: {xcom_resp.text}") 
+                print(f"Previous failed_dags XCom API response: {xcom_resp.text}")
                 return xcom_resp.json().get("value")
     except Exception as e:
         print(f"Error fetching previous failed_dags XCom via API: {e}")
