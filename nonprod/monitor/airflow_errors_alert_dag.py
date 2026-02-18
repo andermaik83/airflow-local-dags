@@ -146,6 +146,7 @@ def get_prev_failed_dags_via_api(ti, api_host, headers):
         dag_id = ti.dag_id
         task_id = ti.task_id
         current_run_id = ti.run_id
+        print(f"dag_id: {dag_id}, task_id: {task_id}, current_run_id: {current_run_id}")
         dagruns_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns?order_by=-start_date&limit=2")
         print(f"dag_runs: {dagruns_url}")
         dagruns_resp = requests.get(dagruns_url, headers=headers, timeout=30)
@@ -155,8 +156,8 @@ def get_prev_failed_dags_via_api(ti, api_host, headers):
         print(f"dagrunsd: {dagruns}")
         print("!!!1111")
         for dr in dagruns:
-            if dr.get("run_id") != current_run_id:
-                prev_run_id = dr.get("run_id")
+            if dr.get("dag_run_id") != current_run_id:
+                prev_run_id = dr.get("dag_run_id")
                 break
         print("!!2222")
         if prev_run_id:
