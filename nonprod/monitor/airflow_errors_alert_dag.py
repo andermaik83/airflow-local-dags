@@ -57,6 +57,21 @@ def get_airflow_api_auth():
     extra = conn.extra_dejson if hasattr(conn, 'extra_dejson') else {}
     return host, login, password, extra
 
+def get_airflow_api_token(api_host, airflow_user, airflow_pass):
+    """Obtain JWT token for Airflow API and return headers dict."""
+    import requests
+    from urllib.parse import urljoin
+    token_url = urljoin(api_host, "/auth/token")
+    token_payload = {"username": airflow_user, "password": airflow_pass}
+    token_headers = {"Content-Type": "application/json"}
+    token_resp = requests.post(token_url, json=token_payload, headers=token_headers, timeout=10)
+    if token_resp.status_code not in (200, 201):
+        raise Exception(f"Failed to get JWT token: {token_resp.status_code} {token_resp.text}")
+    token = token_resp.json().get("access_token") or token_resp.json().get("token")
+    if not token:
+        raise Exception(f"No access_token in response: {token_resp.text}")
+    return {"Authorization": f"Bearer {token}"}
+
 def check_failures(**context):
     """Query Airflow REST API for active DAGs whose last run failed. Store result in XCom."""
     import requests
@@ -64,21 +79,7 @@ def check_failures(**context):
     try:
         # Get API connection details
         api_host, airflow_user, airflow_pass, _ = get_airflow_api_auth()
-        # Step 1: Get JWT token
-        token_url = urljoin(api_host, "/auth/token")
-        token_payload = {"username": airflow_user, "password": airflow_pass}
-        token_headers = {"Content-Type": "application/json"}
-        token_resp = requests.post(token_url, json=token_payload, headers=token_headers, timeout=10)
-
-        if token_resp.status_code not in (200, 201):
-            print(f"Failed to get JWT token: {token_resp.status_code} {token_resp.text}")
-            return None
-        token = token_resp.json().get("access_token") or token_resp.json().get("token")
-        if not token:
-            print(f"No access_token in response: {token_resp.text}")
-            return None
-        headers = {"Authorization": f"Bearer {token}"}
-
+        headers = get_airflow_api_token(api_host, airflow_user, airflow_pass)
         # Step 2: Query DAGs whose last run failed, not paused, not stale
         params = {
             "last_dag_run_state": "failed",
@@ -136,32 +137,15 @@ def check_failures(**context):
         traceback.print_exc()
         return None
 
-def send_email_if_failures(**context):
-    """Send email via SMTP if failures detected and the list changed."""
-    print("########++++++++++++++++########")
-    print(f"mail to: {MAIL_TO}")
-    print(f"mail from: {MAIL_FROM}")
-    ti = context['ti']
-    report = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures')
-    failed_dags = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures', key='failed_dags_list')
-    # Retrieve prev_failed_dags from previous DAG run using Airflow REST API
+def get_prev_failed_dags_via_api(ti, api_host, headers):
+    """Fetch prev_failed_dags_list XCom from previous DAG run using Airflow REST API."""
     import requests
     from urllib.parse import urljoin
-    prev_failed_dags = None
     try:
-        api_host, airflow_user, airflow_pass, _ = get_airflow_api_auth()
-        # Step 1: Get JWT token
-        token_url = urljoin(api_host, "/auth/token")
-        token_payload = {"username": airflow_user, "password": airflow_pass}
-        token_headers = {"Content-Type": "application/json"}
-        token_resp = requests.post(token_url, json=token_payload, headers=token_headers, timeout=10)
-        token = token_resp.json().get("access_token") or token_resp.json().get("token")
-        headers = {"Authorization": f"Bearer {token}"}
         # Step 2: Get previous dag_run_id (not current)
         dag_id = ti.dag_id
         task_id = ti.task_id
         current_run_id = ti.run_id
-        # Get all dagRuns, order by execution_date desc
         dagruns_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns?order_by=-execution_date&limit=2")
         dagruns_resp = requests.get(dagruns_url, headers=headers, timeout=30)
         dagruns = dagruns_resp.json().get("dag_runs", [])
@@ -171,13 +155,27 @@ def send_email_if_failures(**context):
                 prev_run_id = dr.get("run_id")
                 break
         if prev_run_id:
-            # Step 3: Get previous XCom value
             xcom_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns/{prev_run_id}/taskInstances/{task_id}/xcomEntries/prev_failed_dags_list?deserialize=true")
             xcom_resp = requests.get(xcom_url, headers=headers, timeout=10)
             if xcom_resp.ok:
-                prev_failed_dags = xcom_resp.json().get("value")
+                print(f"Previous failed_dags XCom API response: {xcom_resp.text}") 
+                return xcom_resp.json().get("value")
     except Exception as e:
         print(f"Error fetching previous failed_dags XCom via API: {e}")
+    return None
+
+def send_email_if_failures(**context):
+    """Send email via SMTP if failures detected and the list changed."""
+    print("########++++++++++++++++########")
+    print(f"mail to: {MAIL_TO}")
+    print(f"mail from: {MAIL_FROM}")
+    ti = context['ti']
+    report = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures')
+    failed_dags = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures', key='failed_dags_list')
+    # Get API connection details and token headers once
+    api_host, airflow_user, airflow_pass, _ = get_airflow_api_auth()
+    headers = get_airflow_api_token(api_host, airflow_user, airflow_pass)
+    prev_failed_dags = get_prev_failed_dags_via_api(ti, api_host, headers)
     # Compare current and previous failed_dags lists
     print(f"Current failed_dags: {failed_dags}")
     print(f"Previous failed_dags: {prev_failed_dags}")
