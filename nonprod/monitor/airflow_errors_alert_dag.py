@@ -138,7 +138,7 @@ def check_failures(**context):
         return None
 
 def get_prev_failed_dags_via_api(ti, api_host, headers):
-    """Fetch prev_failed_dags_list XCom from previous DAG run using Airflow REST API."""
+    """Fetch failed_dags_list XCom from previous DAG run using Airflow REST API."""
     import requests
     from urllib.parse import urljoin
     try:
@@ -159,7 +159,7 @@ def get_prev_failed_dags_via_api(ti, api_host, headers):
                 break
         print("!!2222")
         if prev_run_id:
-            xcom_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns/{prev_run_id}/taskInstances/{task_id}/xcomEntries/prev_failed_dags_list?deserialize=true")
+            xcom_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns/{prev_run_id}/taskInstances/{task_id}/xcomEntries/failed_dags_list?deserialize=true")
             print(f"Fetching previous failed_dags XCom via API: {xcom_url}")
             xcom_resp = requests.get(xcom_url, headers=headers, timeout=10)
             print(f"Previous failed_dags XCom API response: {xcom_resp.text}")
@@ -195,7 +195,7 @@ def send_email_if_failures(**context):
             print("No change in failed DAGs list, skipping email.")
             return
     # Store current failed_dags as previous for next run
-    ti.xcom_push(key='prev_failed_dags_list', value=failed_dags)
+    ti.xcom_push(key='failed_dags_list', value=failed_dags)
     if not report or report.get("count", 0) == 0:
         print("No failures to report, skipping email.")
         return
