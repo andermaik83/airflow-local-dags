@@ -68,6 +68,7 @@ def check_failures(**context):
         token_payload = {"username": airflow_user, "password": airflow_pass}
         token_headers = {"Content-Type": "application/json"}
         token_resp = requests.post(token_url, json=token_payload, headers=token_headers, timeout=10)
+
         if token_resp.status_code not in (200, 201):
             print(f"Failed to get JWT token: {token_resp.status_code} {token_resp.text}")
             return None
@@ -95,7 +96,7 @@ def check_failures(**context):
         for dag in dags_data.get("dags", []):
             dag_id = dag.get("dag_id")
             last_parsed_time = dag.get("last_parsed_time")
-            last_parse_duration = dag.get("last_parse_duration")
+            last_parse_duration = round(dag.get("last_parse_duration", 0), 2)
             if last_parsed_time:
                 failed_dags.append({
                     "dag_id": dag_id,
@@ -136,7 +137,7 @@ def check_failures(**context):
 
 def send_email_if_failures(**context):
     """Send email via SMTP if failures detected and the list changed."""
-    print("++++++++++++++++")
+    print("########++++++++++++++++########")
     print(f"mail to: {MAIL_TO}")
     print(f"mail from: {MAIL_FROM}")
     ti = context['ti']
@@ -144,7 +145,13 @@ def send_email_if_failures(**context):
     failed_dags = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures', key='failed_dags_list')
     prev_failed_dags = ti.xcom_pull(task_ids=None, key='prev_failed_dags_list')
     # Compare current and previous failed_dags lists
+    print("!!!!!!!!!!!!!!!!!")
     if failed_dags is not None and prev_failed_dags is not None:
+        print ("Comparing current and previous failed DAGs lists for change detection...")
+        json1=json.dumps(failed_dags, sort_keys=True)
+        json2=json.dumps(prev_failed_dags, sort_keys=True)
+        print(f"failed dags 1: {json1}")
+        print(f"failed dags 2: {json2}")
         if json.dumps(failed_dags, sort_keys=True) == json.dumps(prev_failed_dags, sort_keys=True):
             print("No change in failed DAGs list, skipping email.")
             return
