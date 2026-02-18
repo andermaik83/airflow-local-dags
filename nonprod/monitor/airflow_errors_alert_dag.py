@@ -187,6 +187,8 @@ def send_email_if_failures(**context):
     # Compare only dag_id sets for change detection
     print(f"Current failed_dags: {failed_dags}")
     print(f"Previous failed_dags: {prev_failed_dags}")
+    print(f"Current dag_ids: {current_ids}")
+    print(f"Previous dag_ids: {prev_ids}")
     if failed_dags is not None and prev_failed_dags is not None:
         current_ids = set(d['dag_id'] for d in failed_dags if 'dag_id' in d)
         prev_ids = set(d['dag_id'] for d in prev_failed_dags if 'dag_id' in d)
