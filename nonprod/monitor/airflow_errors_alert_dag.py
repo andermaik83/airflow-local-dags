@@ -184,17 +184,16 @@ def send_email_if_failures(**context):
     api_host, airflow_user, airflow_pass, _ = get_airflow_api_auth()
     headers = get_airflow_api_token(api_host, airflow_user, airflow_pass)
     prev_failed_dags = get_prev_failed_dags_via_api(ti, api_host, headers)
-    # Compare current and previous failed_dags lists
+    # Compare only dag_id sets for change detection
     print(f"Current failed_dags: {failed_dags}")
     print(f"Previous failed_dags: {prev_failed_dags}")
     if failed_dags is not None and prev_failed_dags is not None:
-        print ("Comparing current and previous failed DAGs lists for change detection...")
-        json1=json.dumps(failed_dags, sort_keys=True)
-        json2=json.dumps(prev_failed_dags, sort_keys=True)
-        print(f"failed dags 1: {json1}")
-        print(f"failed dags 2: {json2}")
-        if json1 == json2:
-            print("No change in failed DAGs list, skipping email.")
+        current_ids = set(d['dag_id'] for d in failed_dags if 'dag_id' in d)
+        prev_ids = set(d['dag_id'] for d in prev_failed_dags if 'dag_id' in d)
+        print(f"Current dag_ids: {current_ids}")
+        print(f"Previous dag_ids: {prev_ids}")
+        if current_ids == prev_ids:
+            print("No change in failed DAG IDs, skipping email.")
             return
     # Store current failed_dags as previous for next run
     ti.xcom_push(key='failed_dags_list', value=failed_dags)
