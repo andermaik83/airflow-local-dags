@@ -106,6 +106,9 @@ def check_failures(**context):
                     "last_parse_duration": last_parse_duration
                 })
 
+        # Store failed_dags in XCom for change detection
+        context['ti'].xcom_push(key='failed_dags_list', value=failed_dags)
+
         if not failed_dags:
             print("No active DAGs with last run failed.")
             return None
@@ -142,9 +145,9 @@ def get_prev_failed_dags_via_api(ti, api_host, headers):
     from urllib.parse import urljoin
     try:
         # Step 2: Get previous dag_run_id (not current)
-        dag_id = ti.dag_id
-        task_id = ti.task_id
+        dag_id = ti.dag_id        
         current_run_id = ti.run_id
+        task_id = f'{env_pre}g_check_failures'
         print(f"dag_id: {dag_id}, task_id: {task_id}, current_run_id: {current_run_id}")
         dagruns_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns?order_by=-start_date&limit=2")
         print(f"dag_runs: {dagruns_url}")
@@ -182,8 +185,6 @@ def send_email_if_failures(**context):
     ti = context['ti']
     report = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures')
     failed_dags = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures', key='failed_dags_list')
-    # Store current failed_dags as previous for next run
-    ti.xcom_push(key='failed_dags_list', value=failed_dags)
 
     # Get API connection details and token headers once
     api_host, airflow_user, airflow_pass, _ = get_airflow_api_auth()
