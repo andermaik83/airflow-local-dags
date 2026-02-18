@@ -144,18 +144,40 @@ def send_email_if_failures(**context):
     ti = context['ti']
     report = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures')
     failed_dags = ti.xcom_pull(task_ids=f'{env_pre}g_check_failures', key='failed_dags_list')
-    # Retrieve prev_failed_dags from previous DAG run (not current execution)
-    from airflow.models.xcom import XCom
+    # Retrieve prev_failed_dags from previous DAG run using Airflow REST API
+    import requests
+    from urllib.parse import urljoin
     prev_failed_dags = None
-    with Session() as session:
-        prev_failed_dags = XCom.get_one(
-            execution_date=None,  # None means previous execution
-            dag_id=ti.dag_id,
-            task_id=ti.task_id,
-            key='prev_failed_dags_list',
-            include_prior_dates=True,
-            session=session
-        )
+    try:
+        api_host, airflow_user, airflow_pass, _ = get_airflow_api_auth()
+        # Step 1: Get JWT token
+        token_url = urljoin(api_host, "/auth/token")
+        token_payload = {"username": airflow_user, "password": airflow_pass}
+        token_headers = {"Content-Type": "application/json"}
+        token_resp = requests.post(token_url, json=token_payload, headers=token_headers, timeout=10)
+        token = token_resp.json().get("access_token") or token_resp.json().get("token")
+        headers = {"Authorization": f"Bearer {token}"}
+        # Step 2: Get previous dag_run_id (not current)
+        dag_id = ti.dag_id
+        task_id = ti.task_id
+        current_run_id = ti.run_id
+        # Get all dagRuns, order by execution_date desc
+        dagruns_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns?order_by=-execution_date&limit=2")
+        dagruns_resp = requests.get(dagruns_url, headers=headers, timeout=30)
+        dagruns = dagruns_resp.json().get("dag_runs", [])
+        prev_run_id = None
+        for dr in dagruns:
+            if dr.get("run_id") != current_run_id:
+                prev_run_id = dr.get("run_id")
+                break
+        if prev_run_id:
+            # Step 3: Get previous XCom value
+            xcom_url = urljoin(api_host, f"/api/v2/dags/{dag_id}/dagRuns/{prev_run_id}/taskInstances/{task_id}/xcomEntries/prev_failed_dags_list?deserialize=true")
+            xcom_resp = requests.get(xcom_url, headers=headers, timeout=10)
+            if xcom_resp.ok:
+                prev_failed_dags = xcom_resp.json().get("value")
+    except Exception as e:
+        print(f"Error fetching previous failed_dags XCom via API: {e}")
     # Compare current and previous failed_dags lists
     print(f"Current failed_dags: {failed_dags}")
     print(f"Previous failed_dags: {prev_failed_dags}")
