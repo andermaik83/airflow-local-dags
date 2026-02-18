@@ -86,10 +86,10 @@ def check_failures(**context):
         }
         dags_url = urljoin(api_host, f"/api/v2/dags?{urlencode(params)}")
         dags_response = requests.get(dags_url, headers=headers, timeout=30)
+        print(f"DAGs API raw response: {dags_response.text}")
         if not dags_response.ok:
             print(f"DAGs API returned {dags_response.status_code}: {dags_response.text}")
-            return None
-        print(f"DAGs API raw response: {dags_response.text}")
+            return None        
         dags_data = dags_response.json()
         failed_dags = []
         for dag in dags_data.get("dags", []):
